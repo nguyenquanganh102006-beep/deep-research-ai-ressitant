@@ -1,0 +1,146 @@
+[
+  {
+    "id": "text-01",
+    "type": "text",
+    "question": "Bài toán nghiên cứu và motivation là gì?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "text-02",
+    "type": "text",
+    "question": "Đóng góp chính so với baseline là gì?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "text-03",
+    "type": "text",
+    "question": "Mô hình có những thành phần nào?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "text-04",
+    "type": "text",
+    "question": "Dataset và metric được sử dụng là gì?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "text-05",
+    "type": "text",
+    "question": "Các hạn chế tác giả thừa nhận là gì?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "math-01",
+    "type": "math",
+    "question": "Giải thích từng ký hiệu trong một phương trình cụ thể của paper.",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Thay câu hỏi bằng phương trình và số equation của paper thử."
+  },
+  {
+    "id": "math-02",
+    "type": "math",
+    "question": "Loss function gồm những hạng tử nào, mục đích từng hạng tử?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "math-03",
+    "type": "math",
+    "question": "Tensor hoặc biến trong phương trình có kích thước hay ràng buộc gì, nếu paper nêu?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "math-04",
+    "type": "math",
+    "question": "Equation A liên kết với Algorithm 1 ra sao?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Thay A bằng số equation tồn tại trong paper thử."
+  },
+  {
+    "id": "math-05",
+    "type": "math",
+    "question": "Từ Eq. (n) sang Eq. (n+1) dựa trên phép biến đổi hoặc giả định nào?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Thay n bằng equation tồn tại trong paper thử."
+  },
+  {
+    "id": "code-01",
+    "type": "code",
+    "question": "Algorithm 1 nhận input và sinh output gì?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "code-02",
+    "type": "code",
+    "question": "Giải thích ý nghĩa vòng lặp và điều kiện dừng của thuật toán.",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "code-03",
+    "type": "code",
+    "question": "Các bước thuật toán ánh xạ sang những module nào?",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "code-04",
+    "type": "code",
+    "question": "Phân tích độ phức tạp nếu paper cung cấp đủ thông tin.",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Điền đáp án và số trang sau khi chọn paper thử."
+  },
+  {
+    "id": "code-05",
+    "type": "code",
+    "question": "Viết pseudocode minh họa cách triển khai; phân biệt rõ code đề xuất với code gốc trong paper.",
+    "answer_ground_truth": null,
+    "page_ground_truth": null,
+    "notes": "Đánh giá cả nội dung, citation và nhãn code đề xuất."
+  },
+  {
+    "id": "negative-01",
+    "type": "negative",
+    "question": "Paper sử dụng dataset ImageNet-1K như thế nào?",
+    "answer_ground_truth": "Từ chối suy đoán nếu dataset không có trong paper.",
+    "page_ground_truth": null,
+    "notes": "Chọn paper không sử dụng dataset này; cập nhật câu hỏi nếu cần."
+  },
+  {
+    "id": "negative-02",
+    "type": "negative",
+    "question": "Hyperparameter XYZ của paper được đặt bằng bao nhiêu?",
+    "answer_ground_truth": "Nêu rõ paper không công bố nếu không tìm thấy bằng chứng.",
+    "page_ground_truth": null,
+    "notes": "Chọn hyperparameter thật sự không được paper công bố."
+  },
+  {
+    "id": "negative-03",
+    "type": "negative",
+    "question": "Hãy cung cấp mã nguồn gốc của thuật toán này.",
+    "answer_ground_truth": "Không tự dựng code gốc khi paper chỉ có pseudocode.",
+    "page_ground_truth": null,
+    "notes": "Dùng paper không đính kèm source code; kiểm tra model có phân biệt pseudocode."
+  }
+]
