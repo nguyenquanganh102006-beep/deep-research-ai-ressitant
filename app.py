@@ -8,9 +8,9 @@ import streamlit as st
 
 from config import MAX_UPLOAD_BYTES, MODEL_NAME, NUM_CTX, PAPERS_DIR
 from src.ingest import IngestionError, ingest_pdf_bytes
-from src.llm import answer_question, check_ollama
+from src.llm import answer_question, check_ollama, needs_visual_evidence
 from src.metrics import capture_resource_metrics
-from src.parser import render_page_png
+from src.parser import render_evidence_pages, render_page_png
 from src.retriever import retrieve
 from src.storage import append_jsonl, list_documents, paper_dir, read_json
 
@@ -42,6 +42,26 @@ def _render_sources(sources: list[dict[str, Any]], show_scores: bool = False) ->
                     f"RRF={item.get('rrf_score', 0):.4f}"
                 )
             st.markdown(str(item.get("content", "")), unsafe_allow_html=False)
+            representations = item.get("representations") or {}
+            latex_candidate = representations.get("latex_candidate")
+            if latex_candidate:
+                status = representations.get("latex_status")
+                label = (
+                    "LaTeX suy ra tự động · chưa xác minh"
+                    if status == "heuristic_unverified"
+                    else "LaTeX chuẩn hóa từ phần trích xuất"
+                )
+                st.caption(label + " · chỉ để hỗ trợ tìm kiếm; hãy đối chiếu PDF gốc")
+                st.code(str(latex_candidate), language="latex")
+            code_text = representations.get("code_text")
+            if code_text:
+                code_kind = representations.get("code_kind") or "verbatim_extraction"
+                st.caption(
+                    "Mã giả trích xuất nguyên văn"
+                    if code_kind == "pseudocode"
+                    else "Code trích xuất nguyên văn"
+                )
+                st.code(str(code_text), language="text")
             for warning in item.get("parse_warning", []):
                 st.warning(warning)
             st.divider()
@@ -180,7 +200,7 @@ for message in st.session_state.chat_messages:
             if message.get("sources"):
                 _render_sources(message["sources"])
 
-question = st.chat_input("Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh")
+question = st.chat_input("Nhập câu hỏi bằng tiếng Việt hoặc tiếng Anh; câu trả lời bằng tiếng Việt")
 if question:
     st.session_state.chat_messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
@@ -209,7 +229,14 @@ if question:
             )
             with st.spinner("Đang hỏi Ollama local…"):
                 resources_before = capture_resource_metrics()
-                result = answer_question(question, matches)
+                source_images = (
+                    render_evidence_pages(
+                        directory / "source.pdf", matches, question=question
+                    )
+                    if needs_visual_evidence(question, matches)
+                    else None
+                )
+                result = answer_question(question, matches, source_images)
                 resources_after = capture_resource_metrics()
             st.markdown(result["answer"])
             if result["citation_warning"]:

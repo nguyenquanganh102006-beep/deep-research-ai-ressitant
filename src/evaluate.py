@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from config import PROJECT_ROOT
-from src.llm import answer_question
+from src.llm import answer_question, needs_visual_evidence
+from src.parser import render_evidence_pages
 from src.retriever import retrieve
 from src.storage import list_documents, paper_dir, read_json, write_json
 
@@ -75,10 +76,21 @@ def main() -> int:
                 "error_class": "retrieval_miss" if hit is False else None,
             }
             if args.answer:
-                answer_result = answer_question(case["question"], matches)
+                source_images = (
+                    render_evidence_pages(
+                        paper_dir(document_id) / "source.pdf",
+                        matches,
+                        question=case["question"],
+                    )
+                    if needs_visual_evidence(case["question"], matches)
+                    else None
+                )
+                answer_result = answer_question(case["question"], matches, source_images)
                 result["answer"] = answer_result["answer"]
                 result["latency_seconds"] = answer_result["latency_seconds"]
                 result["citation_warning"] = answer_result["citation_warning"]
+                result["citations"] = answer_result["citations"]
+                result["invalid_citations"] = answer_result["invalid_citations"]
                 if answer_result["invalid_citations"] or answer_result["citation_warning"]:
                     result["error_class"] = "citation_error"
                 elif not result["error_class"]:

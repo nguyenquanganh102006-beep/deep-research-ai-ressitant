@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from config import CHUNK_MAX_WORDS, CHUNK_OVERLAP_WORDS, CHUNK_TARGET_WORDS
+from src.representations import build_representations
 
 _FENCE = re.compile(r"^\s*(```|~~~)")
 _HEADING = re.compile(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$")
@@ -58,6 +59,7 @@ def create_chunks(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "section": section,
                     "type": kind,
                     "content": content,
+                    "representations": build_representations(content, kind),
                     "equation_id": _equation_id(content),
                     "parse_warning": warnings,
                 }

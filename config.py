@@ -15,7 +15,7 @@ OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 OLLAMA_TIMEOUT_SECONDS = int(os.getenv("DEEPRESEARCH_OLLAMA_TIMEOUT", "600"))
 NUM_CTX = int(os.getenv("DEEPRESEARCH_NUM_CTX", "4096"))
 TEMPERATURE = float(os.getenv("DEEPRESEARCH_TEMPERATURE", "0.15"))
-NUM_PREDICT = int(os.getenv("DEEPRESEARCH_NUM_PREDICT", "700"))
+NUM_PREDICT = int(os.getenv("DEEPRESEARCH_NUM_PREDICT", "220"))
 
 EMBEDDING_MODEL = os.getenv(
     "DEEPRESEARCH_EMBEDDING_MODEL", "intfloat/multilingual-e5-small"
@@ -33,4 +33,4 @@ RETRIEVAL_TOP_K = int(os.getenv("DEEPRESEARCH_TOP_K", "4"))
 RETRIEVAL_MAX_CONTEXTS = int(os.getenv("DEEPRESEARCH_MAX_CONTEXTS", "6"))
 MAX_EVIDENCE_CHARS = max(4000, NUM_CTX * 2)
 
-PARSER_VERSION = "pymupdf4llm-page-chunks-v1"
+PARSER_VERSION = "pymupdf4llm-loss-aware-representations-v2"

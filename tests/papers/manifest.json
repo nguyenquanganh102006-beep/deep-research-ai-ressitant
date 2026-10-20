@@ -1,0 +1,20 @@
+[
+  {
+    "paper": "adam",
+    "source_url": "https://arxiv.org/pdf/1412.6980v9",
+    "pdf": "tests/papers/adam-1412.6980v9.pdf",
+    "questions": "tests/adam.questions.json",
+    "page_count": 15,
+    "sha256": "eab9c73ae2ceda884b94830bda99312254bac4806f6c9f045cbab90721ecda31",
+    "question_count": 15
+  },
+  {
+    "paper": "flashattention",
+    "source_url": "https://arxiv.org/pdf/2205.14135v2",
+    "pdf": "tests/papers/flashattention-2205.14135v2.pdf",
+    "questions": "tests/flashattention.questions.json",
+    "page_count": 34,
+    "sha256": "ca7f9fda10b90fc05dd291a3accc85e9c1a4a860b99b31928dab03ed3fcb14e4",
+    "question_count": 15
+  }
+]

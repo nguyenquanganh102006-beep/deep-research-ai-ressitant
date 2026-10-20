@@ -54,6 +54,7 @@ def ingest_pdf_bytes(data: bytes, filename: str) -> tuple[dict[str, Any], bool]:
             ]
             if (
                 existing.get("parse_status") in {"ok", "warning"}
+                and existing.get("parser_version") == PARSER_VERSION
                 and all(path.exists() for path in required)
             ):
                 return existing, True

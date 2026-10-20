@@ -1,0 +1,17 @@
+[
+  {"id":"flash-text-01","type":"text","question":"FlashAttention bản dense là attention chính xác hay xấp xỉ? Nó tối ưu luồng dữ liệu giữa hai loại bộ nhớ nào?","answer_ground_truth":"Chính xác; giữa HBM và SRAM trên chip.","page_ground_truth":[1]},
+  {"id":"flash-math-01","type":"math","question":"Theo Theorem 1, đầu ra O và số FLOPs của Algorithm 1 là gì?","answer_ground_truth":"O=softmax(QK^T)V; O(N^2*d) FLOPs.","page_ground_truth":[5]},
+  {"id":"flash-math-02","type":"math","question":"Algorithm 1: kích thước Q_i, K_j và S_ij là gì?","answer_ground_truth":"Q_i: Br*d; K_j: Bc*d; S_ij: Br*Bc.","page_ground_truth":[5]},
+  {"id":"flash-math-03","type":"math","question":"Algorithm 1 chọn B_c và B_r từ SRAM M và head dimension d theo công thức nào?","answer_ground_truth":"Bc=ceil(M/(4*d)); Br=min(ceil(M/(4*d)),d).","page_ground_truth":[5]},
+  {"id":"flash-math-04","type":"math","question":"Trong Algorithm 1, viết công thức cập nhật m_i_new và l_i_new để ghép hai khối softmax.","answer_ground_truth":"m_new=max(m,m_tilde); l_new=exp(m-m_new)*l+exp(m_tilde-m_new)*l_tilde.","page_ground_truth":[5]},
+  {"id":"flash-math-05","type":"math","question":"Theorem 2 cho số lần truy cập HBM của standard attention và FlashAttention là gì, với miền M nào?","answer_ground_truth":"Standard: Theta(Nd+N^2); Flash: Theta(N^2*d^2/M); d<=M<=Nd.","page_ground_truth":[6]},
+  {"id":"flash-math-06","type":"math","question":"Appendix B.2 Eq. (4): D_i có thể tính từ d_o_i và o_i thế nào?","answer_ground_truth":"D_i=d_o_i^T*o_i.","page_ground_truth":[19]},
+  {"id":"flash-code-01","type":"code","question":"Algorithm 1: vòng lặp ngoài duyệt gì, vòng lặp trong duyệt gì và khi nào nạp K_j,V_j?","answer_ground_truth":"Ngoài j trên khối K,V; trong i trên khối Q. Nạp K_j,V_j trước vòng i.","page_ground_truth":[5]},
+  {"id":"flash-code-02","type":"code","question":"Algorithm 1 khởi tạo O, l và m bằng những giá trị nào?","answer_ground_truth":"O=0; l=0; m=-infinity.","page_ground_truth":[5]},
+  {"id":"flash-code-03","type":"code","question":"Algorithm 2 forward pass trả về những biến nào để hỗ trợ backward? R là gì?","answer_ground_truth":"O,l,m,R; R là trạng thái bộ sinh số giả ngẫu nhiên.","page_ground_truth":[19,20]},
+  {"id":"flash-code-04","type":"code","question":"Appendix B.4: vì sao không cần lưu dropout mask kích thước N^2 từ forward?","answer_ground_truth":"Lưu trạng thái RNG rồi tái tạo mask khi backward.","page_ground_truth":[20]},
+  {"id":"flash-code-05","type":"code","question":"Algorithm 5 block-sparse bỏ qua khối nào và kiểm tra ở đâu?","answer_ground_truth":"Bỏ khối có M_ij=0; kiểm tra trong vòng i trước nạp Q_i.","page_ground_truth":[25]},
+  {"id":"flash-negative-01","type":"negative","question":"Theorem 1 chứng minh FlashAttention giảm số FLOPs xuống O(N*d), đúng không?","answer_ground_truth":"Sai; vẫn O(N^2*d) FLOPs.","page_ground_truth":[5],"notes":"Phân biệt FLOPs với bộ nhớ bổ sung O(N)."},
+  {"id":"flash-negative-02","type":"negative","question":"Paper này báo cáo kernel đạt bao nhiêu tokens/giây trên NVIDIA RTX 5090?","answer_ground_truth":"PDF không có số đo này; không suy đoán.","page_ground_truth":null,"notes":"Không tính Hit@5; không dùng benchmark ngoài PDF."},
+  {"id":"flash-negative-03","type":"negative","question":"Chép nguyên văn toàn bộ hàm CUDA flash_attn_fwd_kernel từ PDF.","answer_ground_truth":"PDF có mã giả, không chứa toàn bộ hàm CUDA đó; không bịa code gốc.","page_ground_truth":null,"notes":"Liên kết repository không đồng nghĩa mã nguồn có trong PDF."}
+]
