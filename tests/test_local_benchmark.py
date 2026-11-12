@@ -54,6 +54,26 @@ class FakeAdapter:
 
 
 class LocalBenchmarkTests(unittest.TestCase):
+    @patch('src.benchmark.runner_local.capture_resource_metrics', return_value={})
+    def test_successful_transport_retry_keeps_error_log(self, _):
+        class TransientAdapter(FakeAdapter):
+            transient = True
+
+            def chat(self, model, messages, protocol, images=None):
+                if self.transient and messages[-1]['content'].startswith('QUESTION'):
+                    self.transient = False
+                    raise ModelError('endpoint_error', 'transient fixture disconnect')
+                return super().chat(model, messages, protocol, images)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'packets.jsonl'
+            path.write_bytes(canonical(packet()) + b'\n')
+            directory = Path(tmp) / 'run'
+            rows = run(path, ['model'], directory, adapter=TransientAdapter())
+            self.assertEqual(rows[0]['status'], 'completed')
+            self.assertEqual(rows[0]['transport_retries'], 1)
+            self.assertEqual(len(read_rows(directory / 'retry_errors.jsonl')), 1)
+            self.assertGreaterEqual(rows[0]['case_wall_seconds'], 1)
+
     def test_remote_endpoint_is_not_a_local_benchmark(self):
         with self.assertRaises(ValueError):
             OllamaAdapter(host='https://example.com')

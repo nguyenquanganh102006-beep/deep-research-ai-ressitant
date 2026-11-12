@@ -158,6 +158,7 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                     warm_error = exc
             try:
                 for packet in pending:
+                    case_started = time.perf_counter()
                     row = {'run_id': run_dir.name, 'track': packet['track'], 'split': 'dev',
                            'question_id': packet['question_id'], 'category': packet['category'],
                            'paper_ids': packet['paper_ids'], 'model_tag': tag, 'model_digest': digest,
@@ -165,7 +166,8 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                            'prompt_sha256': prompt_hash, 'evidence_sha256': packet['evidence_sha256'],
                            'packet_sha256': packet['packet_sha256'], 'correctness': None,
                            'citation_supported': None, 'review_status': 'pending', 'answer': None,
-                           'attempt': previous.get((digest, packet['question_id']), {}).get('attempt', 0) + 1}
+                           'attempt': previous.get((digest, packet['question_id']), {}).get('attempt', 0) + 1,
+                           'transport_retries': 0}
                     try:
                         if packet['track'] == 'gold_text_verified' and packet['gold_evidence_status'] == 'unverified':
                             raise ModelError('evidence_unverified', 'Explicit matching evidence review receipt required')
@@ -187,6 +189,11 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                             except ModelError as exc:
                                 if exc.status != 'endpoint_error' or attempt >= protocol['retry']:
                                     raise
+                                append_jsonl(run_dir / 'retry_errors.jsonl', {
+                                    'model_tag': tag, 'question_id': packet['question_id'],
+                                    'attempt': row['attempt'], 'retry_index': attempt + 1,
+                                    'status': exc.status, 'error': str(exc)})
+                                row['transport_retries'] += 1
                                 time.sleep(1)
                         if (output.get('prompt_eval_count') or 0) + protocol['num_predict'] > protocol['num_ctx']:
                             raise ModelError('context_ineligible', 'Observed prompt plus reserved output exceeds context')
@@ -203,6 +210,7 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                         row.update(citation_metrics(row['answer'], pages))
                     except ModelError as exc:
                         row.update(status=exc.status, error=str(exc))
+                    row['case_wall_seconds'] = round(time.perf_counter() - case_started, 4)
                     append_jsonl(predictions, row)
                     rows.append(row)
             finally:

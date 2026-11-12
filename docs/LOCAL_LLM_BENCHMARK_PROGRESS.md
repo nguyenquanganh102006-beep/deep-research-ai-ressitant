@@ -9,11 +9,11 @@ Cập nhật: 2026-11-12T23:08+07:00. Đây là kết quả foundation/framework
 | 1. Foundation | PASS integrity/API; snapshot tài nguyên có guard | Baseline sanity `44be0c4`; dev 120 câu/12 PDF, 133 evidence khớp sidecar SHA; Adam/Flash smoke từ commit mới đều exit 0 |
 | 2. Config/adapter | Có bản đầu | Registry 32 tag (23 A/9 B), runtime mới có Qwen 2B/4B; digest/quant/capability/think/context và lỗi được log |
 | 3. Evidence | Có packet và gate review | 120 gold packets: 2 có receipt AI, 118 unverified; 2 packet RAG đóng băng và vision dẫn xuất từ đúng packet text |
-| 4. Runner | Smoke trước commit PASS | 2 model × 2 câu = 4 completed; resume tạo 0 dòng mới; pending acceptance sau commit code cuối |
+| 4. Runner | Smoke trước commit PASS | Acceptance tại `a772079`: Gold 4/4 và RAG 4/4 completed; mỗi track resume tạo 0 dòng mới. Bản bổ sung log retry được regression và smoke riêng sau commit |
 | 5. Scoring/report | Có auto metrics và blind review | Correctness/citation support giữ null; CSV, report, template đã sinh; chưa có rubric score/paired quality/Pareto để chọn winner |
 | 6–8. Screening/full dev/final test | Chưa chạy | Không dùng test frozen; chưa chọn finalist hoặc model thắng |
 
-Regression hiện tại: **52 tests PASS** (36 cũ + 16 benchmark mới), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
+Regression hiện tại: **53 tests PASS** (36 cũ + 17 benchmark mới), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
 
 ## Snapshot và phạm vi
 
@@ -21,7 +21,7 @@ Regression hiện tại: **52 tests PASS** (36 cũ + 16 benchmark mới), log `d
 - Dev: Math 40, Code 27, Table 31, Negative 22; SHA `d2482ab73c5068b078e6cdef2b40136d7e0bba4a62446d8024f7f74c461b14ff`.
 - Đã khóa `configs/benchmark/dev_screen12.json`: 3 câu/category, 11 paper, 3 easy/6 medium/3 hard, 10 VI/2 EN. Math trong sample đều medium; không đổi sample theo output.
 - Hai ID smoke `math-0064`, `code-0065` đã chọn trước generation, là subset của screen12.
-- Config dùng JSON thay YAML để không cần thêm dependency; protocol: context4096, output512, temperature0, seed42, prompt chung. Seed không đảm bảo deterministic tuyệt đối.
+- Config dùng JSON thay YAML để không cần thêm dependency; protocol: context 4096, output512, temperature0, seed42, prompt chung. Seed không đảm bảo deterministic tuyệt đối.
 - UI browser chưa verified được ghi riêng; không chặn benchmark batch headless theo plan.
 
 ## Evidence và chống leakage
@@ -50,6 +50,12 @@ Artifact local, không commit:
 - `data/benchmark/local_llm_runs/foundation_stable_v1/`: snapshot resource gate và regression cuối.
 - `data/benchmark/local_llm_runs/framework_smoke_v1/`: run phát triển 4 outputs, resume0, CSV/report/review template. Source hashes của run này khác code sau hardening; không tiếp tục vào cùng run ID.
 - `data/benchmark/local_llm_packets/`: gold packets, receipt/ảnh review, frozen retrieval text/vision và manifest.
+
+## Acceptance thực đã chạy
+
+Tại baseline framework `a772079`, Gold và Fixed-RAG mỗi track chạy Qwen 2B Q8_0 / Qwen 4B Q4_K_M trên cùng 2 ID: 8/8 output completed, cùng input hash theo question ID, mọi CLI/score/resume exit 0, resume tạo 0 dòng mới. Mỗi track có 2 output thiếu citation và 1 output chạm giới hạn 512 token; giữ nguyên và flag, không sửa prompt riêng. GPU placement của các lượt đã quan sát là GPU-only ở context 4096. Không suy ra model thắng từ 8 output này hoặc trộn tác động size với quantization.
+
+Artifacts: `framework_acceptance_gold_v1/`, `framework_acceptance_rag_v1/`, `framework_acceptance_status.json` dưới `data/benchmark/local_llm_runs/`. Scoring và template đã xuất; correctness vẫn null. Bổ sung sau acceptance: log mọi transient retry, giữ số failed attempts và total wall time để không che lỗi sau retry thành công; regression 53 pass. Acceptance cuối cho logging baseline dùng `framework_final_gold_v1/`.
 
 ## Chạy acceptance từ code đã khóa
 

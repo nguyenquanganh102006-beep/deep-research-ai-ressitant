@@ -74,11 +74,19 @@ def summarize(rows: list[dict], reviews: list[dict] = ()):
 def score_run(run_dir: Path, review_path: Path | None = None):
     # Latest attempt per digest/question; preserve earlier attempts in predictions.jsonl.
     latest = {}
-    for row in read_rows(run_dir / 'predictions.jsonl'):
+    history = read_rows(run_dir / 'predictions.jsonl')
+    for row in history:
         latest[(row['model_digest'], row['question_id'])] = row
     rows = list(latest.values())
     reviews = read_rows(review_path) if review_path else []
     metrics = summarize(rows, reviews)
+    for m in metrics:
+        attempts = [r for r in history if r['model_tag'] == m['model_tag'] and r['track'] == m['track']
+                    and (m['category'] == 'all' or r['category'] == m['category'])]
+        m['recorded_attempts'] = len(attempts)
+        m['failed_attempts'] = sum(r['status'] not in EXCLUDED and r['status'] != 'completed' for r in attempts)
+        m['transport_retries'] = sum(r.get('transport_retries', 0) for r in attempts)
+        m['total_case_wall_seconds'] = sum(r.get('case_wall_seconds', 0) for r in attempts)
     write_json(run_dir / 'metrics.json', metrics)
     cases, _ = load_dev()
     labels = {q['question_id']: q for q in cases}
