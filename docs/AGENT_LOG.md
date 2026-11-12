@@ -843,3 +843,12 @@ Phát hiện tài liệu còn ghi trạng thái cũ: `docs/BENCHMARK_DATASET_SUM
 Commit chỉ gồm `README.md`: `3e73b436e3b9e8c4c1a15b6b0a452ffde692881b` (`Update README with dataset status`). Push `origin main` thành công; `git ls-remote` xác nhận remote SHA khớp local. Không chạy test suite.
 
 **Phạm vi giữ nguyên:** `.gitignore`, `requirements.txt`, thư mục data, docs, plan, source và test mới khác vẫn giữ nguyên trong worktree, không stage/commit/push ở lượt này.
+
+
+## 2026-11-12 15:18 +07:00 — Push phần code và tài liệu, loại dataset
+
+**Yêu cầu:** Push gần như toàn bộ thay đổi nhưng không đẩy dataset.
+
+**Đã làm:** Stage có chọn lọc 34 file ngoài `data/`: `.gitignore`, requirements, công cụ `src/benchmark`, `src/catalog`, `src/corpus`, tests tương ứng, plan, docs và worklog. Không có đường dẫn `data/` trong index. Rà tên/nội dung staged và quét token/khóa phổ biến; không có match bí mật. Cập nhật `docs/BENCHMARK_DATASET_SUMMARY.md` để phản ánh `test_data.h5` và `source.zip` đã tải, checksum/size khớp manifest; SciCode harness vẫn chưa chạy. Không chạy test suite. `git diff --cached --check` báo hai trailing spaces ở dòng 5–6 của plan, là line break Markdown có sẵn trong tài liệu.
+
+Commit `e49a9f3` (`Add benchmark and corpus tooling`) đã push thành công lên `origin/main`, sau commit README `3e73b43`. Các file dataset trong `data/` vẫn ở local và không bị xóa hoặc sửa. Lần đọc header plan đầu tiên bị lỗi xuất Unicode CP1252; đã đọc lại bằng UTF-8, không ảnh hưởng file.
