@@ -94,13 +94,41 @@ streamlit run app.py
 
 Trên máy RTX 2060 6 GB này, bản 4B đã chạy ở context 4096 và dùng GPU 100% trong kiểm tra tổng hợp; hãy so chất lượng trên paper thật trước khi đổi mặc định.
 
+## Dataset và trạng thái benchmark
+
+Các số liệu dưới đây phản ánh snapshot đã kiểm tra trong workspace. Bộ QA, PDF, full-text và index chưa được phát hành kèm ứng dụng. Các nguồn đo nhiệm vụ khác nhau nên không cộng thành một điểm chung.
+
+### Bộ QA chính
+
+- **QASPER v0.3:** 5.049 câu trên 1.585 paper, giữ annotation và split chính thức. Validation đạt. Evidence được map theo paragraph; 427 evidence chưa map được giữ nguyên, và 246 câu có bất đồng answerability giữa annotator. QASPER không có ground truth trang PDF.
+- **PDF QA tự xây:** 500 câu trên 46 PDF — 150 math, 150 code/algorithm, 100 table/result và 100 unanswerable/ambiguous. Chia train/dev/test lần lượt 112/120/268; test đã khóa. 128/500 câu được AI khác đối chiếu độc lập; bộ này **AI-reviewed, chưa phải human/expert gold**.
+- Hai bộ chính có **5.549 QA** và 1.630 nhóm paper canonical. `gold_v1` còn 30 câu legacy đã dùng khi thử prompt; chúng thuộc dev và không cộng vào 500 câu PDF QA.
+
+### Nguồn bổ sung, Catalog B và Corpus C
+
+- **LitQA2:** 199 câu đã tải, giữ split nguồn riêng; chưa tích hợp runner.
+- **SciCode:** 80 bài chính (15 dev/65 test), 341 `sub_steps`. Đề, harness và `test_data.h5` đã tải; kích thước và SHA-256 khớp manifest. Harness chưa chạy nên chưa có pass rate.
+- **Catalog B V1:** 100.884 record arXiv / 100.841 nhóm canonical; chỉ metadata, không chứa PDF. Audit và kiểm tra độc lập đạt; OpenAlex chưa nhập.
+- **Corpus C V1:** 2.000 PDF / 41.936 trang / 96.922 chunk; audit đạt và quota sáu topic đủ: AI/ML 500, CV 300, NLP/LLM 300, IR 200, Math/Stats 450, Systems 250. Corpus/index là snapshot local, chưa có nhãn QA.
+
+### Kết quả đánh giá hiện có
+
+QASPER paragraph retrieval trên dev, theo báo cáo hiện có (902/1.005 câu có mapping đủ, 1.501 annotation đủ điều kiện):
+
+| Phương pháp | Hit@5 | Hit@10 | MRR@10 |
+| --- | ---: | ---: | ---: |
+| BM25 | 46,30% | 65,96% | 0,2736 |
+| Dense | 57,76% | 73,35% | 0,3522 |
+| Hybrid | 57,96% | 75,15% | 0,3559 |
+
+Đây là retrieval trên dev, không phải answer accuracy, page citation hay kết quả test. PDF QA chưa có benchmark toàn bộ; LitQA2 chưa có runner; SciCode chưa chạy harness. Smoke retrieval của Corpus C chỉ là kiểm tra vận hành, không phải QA benchmark. Vì vậy chưa có điểm tổng hợp cho toàn bộ nguồn.
+
 ## Giới hạn hiện tại
 
 - Một PDF đang hoạt động tại một thời điểm; ưu tiên PDF digital/text-based.
 - PDF scan, thứ tự đọc hai cột, hình/bảng phức tạp, công thức ảnh và indentation code cần được đối chiếu thủ công. UI hiện parser warnings và đoạn nguồn gốc.
 - Không chạy code lấy từ PDF. Không có database server, agent, web search, fine-tune hoặc OCR/ MinerU nặng bật mặc định.
 - Citation checker phát hiện trang mà model dẫn nhưng không nằm trong context đã truy xuất; đây không phải bộ chứng minh rằng mọi claim đều đúng.
-- Không có paper thử trong thư mục ban đầu nên page ground truth, kiểm tra chất lượng text/code/math và benchmark 2B/4B chưa thể điền thay người dùng.
 
 ## Cấu trúc
 
