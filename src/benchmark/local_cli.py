@@ -91,8 +91,9 @@ def preflight_main():
                 pulled += 1
     rows = []
     for model in candidates:
+        row = {'tag': model['tag']}
         try:
-            row = {'tag': model['tag'], 'status': 'metadata_ready_not_smoked', **adapter.inspect(model['tag'])}
+            row.update(status='metadata_ready_not_smoked', **adapter.inspect(model['tag']))
             if args.smoke and not args.dry_run:
                 if psutil.virtual_memory().available < protocol['minimum_ram_gb'] * 1024**3:
                     raise ModelError('resource_ineligible', 'Available RAM below preflight budget')
@@ -106,7 +107,7 @@ def preflight_main():
                     finally:
                         adapter.unload(model['tag'])
         except ModelError as exc:
-            row = {'tag': model['tag'], 'status': exc.status, 'error': str(exc)}
+            row.update(status=exc.status, error=str(exc))
         rows.append(row)
     write_json(args.output / 'preflight.json', rows)
     print({'environment': str(args.output), 'dataset_passed': dataset_ok, 'resource_passed': resource_ok,

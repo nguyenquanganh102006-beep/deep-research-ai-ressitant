@@ -54,6 +54,22 @@ class FakeAdapter:
 
 
 class LocalBenchmarkTests(unittest.TestCase):
+    def test_preflight_preserves_installed_metadata_when_ram_gate_fails(self):
+        from types import SimpleNamespace
+        from src.benchmark.local_cli import preflight_main
+        class MetadataAdapter(FakeAdapter):
+            def installed(self): return [{'name': 'qwen3.5:2b', 'size': 1}]
+            def inspect(self, tag):
+                if tag != 'qwen3.5:2b': raise ModelError('not_installed', tag)
+                return super().inspect(tag)
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = ['preflight', '--smoke', '--output', tmp]
+            with patch('sys.argv', argv), patch('src.benchmark.local_cli.OllamaAdapter', return_value=MetadataAdapter()), patch('src.benchmark.local_cli.command_snapshot', return_value={'stdout': '', 'exit_code': 0}), patch('src.benchmark.local_cli.psutil.virtual_memory', side_effect=[SimpleNamespace(available=10 * 1024**3), SimpleNamespace(available=0)]), patch('src.benchmark.local_cli.shutil.disk_usage', return_value=SimpleNamespace(free=100 * 1024**3)):
+                self.assertEqual(preflight_main(), 0)
+            row = next(r for r in read_json(Path(tmp) / 'preflight.json') if r['tag'] == 'qwen3.5:2b')
+            self.assertEqual(row['status'], 'resource_ineligible')
+            self.assertTrue(row['model_digest'])
+
     @patch('src.benchmark.runner_local.capture_resource_metrics', return_value={})
     def test_successful_transport_retry_keeps_error_log(self, _):
         class TransientAdapter(FakeAdapter):

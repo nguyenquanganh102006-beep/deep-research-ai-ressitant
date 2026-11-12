@@ -13,7 +13,7 @@ Cập nhật: 2026-11-12T23:08+07:00. Đây là kết quả foundation/framework
 | 5. Scoring/report | Có auto metrics và blind review | Correctness/citation support giữ null; CSV, report, template đã sinh; chưa có rubric score/paired quality/Pareto để chọn winner |
 | 6–8. Screening/full dev/final test | Chưa chạy | Không dùng test frozen; chưa chọn finalist hoặc model thắng |
 
-Regression hiện tại: **53 tests PASS** (36 cũ + 17 benchmark mới), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
+Regression hiện tại: **54 tests PASS** (36 cũ + 18 benchmark mới), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
 
 ## Snapshot và phạm vi
 
@@ -55,7 +55,7 @@ Artifact local, không commit:
 
 Tại baseline framework `a772079`, Gold và Fixed-RAG mỗi track chạy Qwen 2B Q8_0 / Qwen 4B Q4_K_M trên cùng 2 ID: 8/8 output completed, cùng input hash theo question ID, mọi CLI/score/resume exit 0, resume tạo 0 dòng mới. Mỗi track có 2 output thiếu citation và 1 output chạm giới hạn 512 token; giữ nguyên và flag, không sửa prompt riêng. GPU placement của các lượt đã quan sát là GPU-only ở context 4096. Không suy ra model thắng từ 8 output này hoặc trộn tác động size với quantization.
 
-Artifacts: `framework_acceptance_gold_v1/`, `framework_acceptance_rag_v1/`, `framework_acceptance_status.json` dưới `data/benchmark/local_llm_runs/`. Scoring và template đã xuất; correctness vẫn null. Bổ sung sau acceptance: log mọi transient retry, giữ số failed attempts và total wall time để không che lỗi sau retry thành công; regression 53 pass. Acceptance cuối cho logging baseline dùng `framework_final_gold_v1/`.
+Artifacts: `framework_acceptance_gold_v1/`, `framework_acceptance_rag_v1/`, `framework_acceptance_status.json` dưới `data/benchmark/local_llm_runs/`. Scoring và template đã xuất; correctness vẫn null. Bổ sung sau acceptance: log mọi transient retry, giữ số failed attempts và total wall time để không che lỗi sau retry thành công; regression 54 pass. Acceptance cuối cho logging baseline dùng `framework_final_gold_v1/`.
 
 ## Chạy acceptance từ code đã khóa
 
@@ -68,3 +68,6 @@ Artifacts: `framework_acceptance_gold_v1/`, `framework_acceptance_rag_v1/`, `fra
 Bước tiếp theo: review 10 câu còn lại trong screen12, hoàn thiện model discovery/batch đầu và rubric review; chỉ khi đó mới chạy matrix screening. Chưa đủ căn cứ chọn default/math/code/vision specialist. Full120 dev và268 frozen chưa chạy.
 
 API tham chiếu: [Ollama chat](https://docs.ollama.com/api/chat), [model list](https://docs.ollama.com/api/tags), [running model metadata](https://docs.ollama.com/api/ps). Capability được lấy từ `/api/show` thực tế trên bản Ollama cài local; lỗi docs URL show đã gặp404 khi tra cứu, không dùng làm bằng chứng capability.
+
+
+Preflight đã ghi nhận một lần 4B bị `resource_ineligible` khi RAM available giảm sau smoke 2B; snapshot giữ tại `preflight_resource_limited_v1.json`. Sau unload đã đo lại ~3,5GiB available. Metadata installed/digest/quant được giữ ngay cả khi smoke bị chặn; không đồng nhất “installed” với “ready”. Code đã có regression cho trường hợp này.

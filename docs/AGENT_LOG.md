@@ -897,3 +897,6 @@ Preflight32 ứng viên có2installed (Qwen2B/4B); không pull thêm. Snapshot �
 
 
 **Kết quả acceptance:** Commitlocal a772079 khóa22file code/config/test/docs, không data/venv. Tại commit đó Gold4/4 và Fixed-RAG4/4completed với2model×2case, inputhash mỗi question giống nhau giữa model; cả2track resume0, score/runner đềuexit0. Mỗi track có2missingcitation và1outputtruncated512, không tínhcorrectness. Đã bổ sung logging mọitransportretry, attemptfailure/walltime; thêmregressioncho successfulretrygiữerrorlog; tổng53testspass. Code/runtimepacket khônglộreference/rubric; nguồnparse/retriever/run_pdf/run_qaspergiữnguyên. Cómộtlầnsecret-scan globWindowskhônghợplệ; chạy lạibằngdirectoryscan khôngcómatchsecret. Chuẩnbịcommitlocalbổsunglogvàacceptancereport, rồi smokeGoldcodecuối. Chưa push.
+
+
+**Preflight tài nguyên:** Smoke preflight giữ 2B ready nhưng đã chặn 4B một lần vì RAM giảm dưới 2GiB; không thay context hoặc xóa weights. Snapshot cũ lưu preflight_resource_limited_v1.json, sau unload RAM đo lại khoảng3,5GiB. Sửa việc mất digest/quant của model installed khi resource gate fail; regression mới kiểm metadata được giữ, tổng54tests PASS. Commit local b1c979f đã giữ log retries/attempt history và acceptance trước đó. Chuẩn bị khóa bản sửa preflight rồi chỉ chạy acceptance nhỏ ở snapshot mới. Không pull thêm model; không chạy screening12/full120/frozen.
