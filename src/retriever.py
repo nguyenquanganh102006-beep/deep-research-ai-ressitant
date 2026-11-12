@@ -10,8 +10,8 @@ from typing import Any
 import numpy as np
 from rank_bm25 import BM25Okapi
 
-from config import RETRIEVAL_MAX_CONTEXTS, RETRIEVAL_TOP_K
-from src.embeddings import embed_query
+from config import RETRIEVAL_MAX_CONTEXTS, RETRIEVAL_TOP_K, EMBEDDING_MODEL
+from src.embeddings import embed_query, embedding_fingerprint
 from src.storage import paper_dir, read_json
 
 _TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[^\W_]", re.UNICODE)
@@ -35,19 +35,29 @@ def retrieve(
     chunks = read_json(directory / "chunks.json")
     if not isinstance(chunks, list) or not chunks:
         raise RuntimeError("Tài liệu chưa có chunk để truy xuất.")
+    metadata = read_json(directory / "metadata.json")
+    if (metadata.get("embedding_model") != EMBEDDING_MODEL
+            or metadata.get("embedding_fingerprint") != embedding_fingerprint()):
+        raise RuntimeError("Embedding configuration changed; re-index this PDF.")
     embeddings_path = directory / "embeddings.npy"
     if not embeddings_path.exists():
         raise RuntimeError("Không tìm thấy embeddings.npy của tài liệu.")
-    vectors = np.load(embeddings_path, allow_pickle=False).astype(np.float32)
+    vectors = np.load(embeddings_path, allow_pickle=False)
     if vectors.ndim != 2 or vectors.shape[0] != len(chunks):
         raise RuntimeError("Embedding và danh sách chunk không khớp.")
 
+    if (vectors.dtype != np.float32 or vectors.shape[1] == 0
+            or not np.isfinite(vectors).all()
+            or not np.allclose(np.linalg.norm(vectors, axis=1), 1.0, atol=1e-3)):
+        raise RuntimeError("Invalid index vectors; re-index this PDF.")
     query_tokens = tokenize(question)
     corpus_tokens = [tokenize(chunk.get("content", "")) for chunk in chunks]
     bm25 = BM25Okapi(corpus_tokens)
     bm25_scores = np.asarray(bm25.get_scores(query_tokens), dtype=np.float32)
 
     query_vector = embed_query(question)
+    if query_vector.shape != (vectors.shape[1],) or not np.isfinite(query_vector).all():
+        raise RuntimeError("Query embedding does not match index dimensions.")
     dense_scores = vectors @ query_vector
 
     dense_order = np.argsort(-dense_scores)

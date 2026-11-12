@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import importlib.metadata
 import os
 import re
@@ -15,11 +16,12 @@ import numpy as np
 
 from config import (
     EMBEDDING_MODEL,
+    CHUNK_TARGET_WORDS, CHUNK_MAX_WORDS, CHUNK_OVERLAP_WORDS,
     MAX_UPLOAD_BYTES,
     PARSER_VERSION,
 )
 from src.chunker import create_chunks
-from src.embeddings import embed_passages
+from src.embeddings import embed_passages, embedding_fingerprint
 from src.metrics import capture_resource_metrics
 from src.parser import PDFValidationError, parse_pdf, validate_pdf
 from src.storage import paper_dir, read_json, utc_now_iso, write_json, write_text
@@ -55,7 +57,12 @@ def ingest_pdf_bytes(data: bytes, filename: str) -> tuple[dict[str, Any], bool]:
             if (
                 existing.get("parse_status") in {"ok", "warning"}
                 and existing.get("parser_version") == PARSER_VERSION
+                and existing.get("ingestion_fingerprint") == _ingestion_fingerprint()
+                and existing.get("embedding_model") == EMBEDDING_MODEL
+                and existing.get("embedding_fingerprint") == embedding_fingerprint()
                 and all(path.exists() for path in required)
+                and hashlib.sha256((directory / "source.pdf").read_bytes()).hexdigest() == document_id
+                and index_artifacts_valid(directory, existing)
             ):
                 return existing, True
         except Exception:
@@ -71,6 +78,7 @@ def ingest_pdf_bytes(data: bytes, filename: str) -> tuple[dict[str, Any], bool]:
         "page_count": info["page_count"],
         "created_at": utc_now_iso(),
         "parser_version": PARSER_VERSION,
+        "ingestion_fingerprint": _ingestion_fingerprint(),
         "pymupdf4llm_version": _package_version("pymupdf4llm"),
         "embedding_model": EMBEDDING_MODEL,
         "chunk_count": 0,
@@ -95,6 +103,11 @@ def ingest_pdf_bytes(data: bytes, filename: str) -> tuple[dict[str, Any], bool]:
 
         embedding_started = time.perf_counter()
         vectors = embed_passages([chunk["content"] for chunk in chunks])
+        if (vectors.dtype != np.float32 or vectors.ndim != 2
+                or vectors.shape[0] != len(chunks) or vectors.shape[1] == 0
+                or not np.isfinite(vectors).all()
+                or not np.allclose(np.linalg.norm(vectors, axis=1), 1.0, atol=1e-3)):
+            raise RuntimeError("Encoder produced invalid or misaligned vectors.")
         metadata["embedding_seconds"] = round(time.perf_counter() - embedding_started, 3)
         _atomic_save_npy(directory / "embeddings.npy", vectors)
 
@@ -109,6 +122,7 @@ def ingest_pdf_bytes(data: bytes, filename: str) -> tuple[dict[str, Any], bool]:
                 "parse_warnings": warnings,
                 "chunk_count": len(chunks),
                 "embedding_dimensions": int(vectors.shape[1]),
+                "embedding_fingerprint": embedding_fingerprint(),
                 "total_ingestion_seconds": round(time.perf_counter() - ingestion_started, 3),
                 "resource_metrics_after_indexing": capture_resource_metrics(),
             }
@@ -124,6 +138,36 @@ def ingest_pdf_bytes(data: bytes, filename: str) -> tuple[dict[str, Any], bool]:
         )
         write_json(metadata_path, metadata)
         raise IngestionError(str(exc), document_id=document_id) from exc
+
+
+def _ingestion_fingerprint() -> str:
+    payload = {"parser": PARSER_VERSION,
+               "pymupdf4llm": _package_version("pymupdf4llm"),
+               "pymupdf": _package_version("pymupdf"),
+               "chunk_target": CHUNK_TARGET_WORDS, "chunk_max": CHUNK_MAX_WORDS,
+               "chunk_overlap": CHUNK_OVERLAP_WORDS}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+
+
+def index_artifacts_valid(directory: Path, metadata: dict[str, Any]) -> bool:
+    try:
+        chunks = read_json(directory / "chunks.json")
+        pages = read_json(directory / "pages.json")
+        vectors = np.load(directory / "embeddings.npy", allow_pickle=False)
+        return (
+            isinstance(chunks, list) and bool(chunks)
+            and isinstance(pages, list) and len(pages) == metadata.get("page_count")
+            and sorted(p["page_number"] for p in pages) == list(range(1, len(pages) + 1))
+            and len(chunks) == metadata.get("chunk_count")
+            and len({c["chunk_id"] for c in chunks}) == len(chunks)
+            and all(1 <= c["page_start"] <= c["page_end"] <= len(pages) for c in chunks)
+            and vectors.dtype == np.float32 and vectors.ndim == 2
+            and vectors.shape == (len(chunks), metadata.get("embedding_dimensions"))
+            and vectors.shape[1] > 0 and np.isfinite(vectors).all()
+            and np.allclose(np.linalg.norm(vectors, axis=1), 1.0, atol=1e-3)
+        )
+    except (OSError, ValueError, TypeError, KeyError, EOFError):
+        return False
 
 
 def _safe_filename(filename: str) -> str:

@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import json
+import importlib.metadata
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -45,3 +49,15 @@ def embed_query(text: str) -> np.ndarray:
         device="cpu",
     )
     return np.asarray(vector[0], dtype=np.float32)
+
+
+def embedding_fingerprint() -> str:
+    from huggingface_hub import snapshot_download
+    revision = Path(snapshot_download(EMBEDDING_MODEL, local_files_only=True)).name
+    payload = {"model": EMBEDDING_MODEL, "revision": revision,
+               "encoder_version": importlib.metadata.version("sentence-transformers"),
+               "transformers_version": importlib.metadata.version("transformers"),
+               "torch_version": importlib.metadata.version("torch"),
+               "passage_prefix": "passage: ", "query_prefix": "query: ",
+               "normalized": True, "dtype": "float32"}
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()

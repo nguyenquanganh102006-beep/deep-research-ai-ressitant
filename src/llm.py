@@ -41,8 +41,9 @@ def check_ollama() -> tuple[bool, str]:
         models = getattr(response, "models", []) or []
         names = [getattr(model, "model", "") or getattr(model, "name", "") for model in models]
         detail = f"Ollama đang chạy; tìm thấy {len(names)} model."
-        if names and not any(name == MODEL_NAME or name.startswith(MODEL_NAME + ":") for name in names):
+        if not any(name == MODEL_NAME or name.startswith(MODEL_NAME + ":") for name in names):
             detail += f" Chưa thấy {MODEL_NAME}; hãy chạy ollama pull {MODEL_NAME}."
+            return False, detail
         return True, detail
     except Exception as exc:
         return False, f"Không kết nối được Ollama tại {OLLAMA_HOST}: {exc}"
@@ -112,9 +113,11 @@ Quy tắc kiểm tra ký hiệu: nếu câu hỏi hỏi một hạng tử nằm 
     )
     latency = time.perf_counter() - started
     answer = str(response.message.content or "").strip()
+    if not answer:
+        raise RuntimeError("Ollama returned an empty answer.")
     evidence_pages = {
         page
-        for item in evidence
+        for item in context_evidence
         for page in range(int(item["page_start"]), int(item["page_end"]) + 1)
     }
     if source_images:
@@ -131,6 +134,9 @@ Quy tắc kiểm tra ký hiệu: nếu câu hỏi hỏi một hạng tử nằm 
         "eval_count": response.eval_count,
         "citations": sorted(set(citations)),
         "evidence_pages": sorted(evidence_pages),
+        "visual_evidence_pages": sorted(page for page, _ in (source_images or [])),
+        "citation_valid_format": bool(citations),
+        "citation_page_in_context": bool(citations) and not invalid_citations,
         "invalid_citations": invalid_citations,
         "citation_warning": (
             "Model đã dẫn trang không nằm trong đoạn nguồn được truy xuất."

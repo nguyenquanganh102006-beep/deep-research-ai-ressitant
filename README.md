@@ -6,7 +6,7 @@
 
 - Windows 10/11 64-bit, Python 3.11 hoặc mới hơn.
 - Ollama for Windows và model `qwen3.5:2b`.
-- NVIDIA driver đã cài nếu muốn Ollama dùng RTX 2060. Không cần cài CUDA toolkit riêng cho ứng dụng này.
+- NVIDIA driver đã cài nếu muốn Ollama dùng GPU NVIDIA. Không cần cài CUDA toolkit riêng cho ứng dụng này.
 - Kết nối mạng cho lần cài package và lần tải model embedding đầu tiên. Sau khi tải xong dependency, E5 và Ollama model, app có thể chạy offline.
 
 ## Cài đặt trên Windows PowerShell
@@ -35,7 +35,7 @@ nvidia-smi
 python smoke_test.py
 ```
 
-`smoke_test.py` dùng `num_ctx=4096`, nhiệt độ thấp, in kết quả `ollama ps` và bộ nhớ GPU trước/sau. RTX 2060 có thể đang dùng một phần VRAM cho màn hình; nếu Ollama hết bộ nhớ, giảm `DEEPRESEARCH_NUM_CTX` hoặc thử model nhỏ hơn.
+`smoke_test.py` dùng `num_ctx=4096`, nhiệt độ thấp, in kết quả `ollama ps` và bộ nhớ GPU trước/sau. GPU 6 GB có thể đang dùng một phần VRAM cho màn hình; nếu Ollama hết bộ nhớ, giảm `DEEPRESEARCH_NUM_CTX` hoặc thử model nhỏ hơn.
 
 ## Chạy ứng dụng
 
@@ -92,7 +92,7 @@ $env:DEEPRESEARCH_MODEL = "qwen3.5:4b"
 streamlit run app.py
 ```
 
-Trên máy RTX 2060 6 GB này, bản 4B đã chạy ở context 4096 và dùng GPU 100% trong kiểm tra tổng hợp; hãy so chất lượng trên paper thật trước khi đổi mặc định.
+Lượt sanity ngày 12/11/2026 dùng RTX 4050 Laptop 6 GB, Python 3.11.9 và `qwen3.5:2b` ở context 4096. Kết quả gate, cache, retrieval, citation và giới hạn kiểm tra UI nằm trong [PIPELINE_SANITY_REPORT.md](docs/PIPELINE_SANITY_REPORT.md).
 
 ## Dataset và trạng thái benchmark
 

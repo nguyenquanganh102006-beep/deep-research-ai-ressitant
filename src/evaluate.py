@@ -42,6 +42,7 @@ def main() -> int:
         if not isinstance(case, dict) or not case.get("question"):
             continue
         question_id = case.get("id", f"q{len(results) + 1}")
+        phase = "retrieval"
         try:
             matches = retrieve(
                 document_id,
@@ -76,6 +77,7 @@ def main() -> int:
                 "error_class": "retrieval_miss" if hit is False else None,
             }
             if args.answer:
+                phase = "visual_evidence"
                 source_images = (
                     render_evidence_pages(
                         paper_dir(document_id) / "source.pdf",
@@ -85,7 +87,11 @@ def main() -> int:
                     if needs_visual_evidence(case["question"], matches)
                     else None
                 )
+                phase = "generation"
                 answer_result = answer_question(case["question"], matches, source_images)
+                result["visual_evidence_pages"] = [page for page, _ in (source_images or [])]
+                for key in ("evidence_pages", "citation_valid_format", "citation_page_in_context"):
+                    result[key] = answer_result[key]
                 result["answer"] = answer_result["answer"]
                 result["latency_seconds"] = answer_result["latency_seconds"]
                 result["citation_warning"] = answer_result["citation_warning"]
@@ -105,7 +111,7 @@ def main() -> int:
                 {
                     "id": question_id,
                     "question": case["question"],
-                    "error_class": "parse_or_retrieval_error",
+                    "error_class": f"{phase}_error",
                     "error": str(exc),
                 }
             )
@@ -133,7 +139,7 @@ def main() -> int:
         print("Hit@5 was not measured: fill page_ground_truth in the question dataset first.")
     else:
         print(f"Hit@5: {report['hit_at_5']:.1%}")
-    return 0
+    return 1 if any("error" in result for result in results) else 0
 
 
 if __name__ == "__main__":

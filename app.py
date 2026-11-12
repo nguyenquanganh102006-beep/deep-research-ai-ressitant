@@ -7,7 +7,7 @@ from typing import Any
 import streamlit as st
 
 from config import MAX_UPLOAD_BYTES, MODEL_NAME, NUM_CTX, PAPERS_DIR
-from src.ingest import IngestionError, ingest_pdf_bytes
+from src.ingest import IngestionError, ingest_pdf_bytes, index_artifacts_valid
 from src.llm import answer_question, check_ollama, needs_visual_evidence
 from src.metrics import capture_resource_metrics
 from src.parser import render_evidence_pages, render_page_png
@@ -155,6 +155,15 @@ if metadata.get("parse_status") == "error":
     st.error(metadata.get("parse_error", "Tài liệu chưa được lập chỉ mục hoàn tất."))
     st.stop()
 
+if metadata.get("parse_status") not in {"ok", "warning"}:
+    st.warning("Tài liệu chưa hoàn tất lập chỉ mục. Hãy xử lý lại PDF để tiếp tục.")
+    st.stop()
+if (not index_artifacts_valid(directory, metadata)
+        or not (directory / "source.pdf").is_file()
+        or not (directory / "parsed.md").is_file()):
+    st.error("Index thiếu hoặc hỏng. Hãy tải lại cùng PDF để lập chỉ mục lại.")
+    st.stop()
+
 parse_warnings = metadata.get("parse_warnings", [])
 if parse_warnings:
     with st.expander(f"Parser warnings ({len(parse_warnings)})", expanded=True):
@@ -255,6 +264,11 @@ if question:
                     "question": question,
                     "retrieved_ids": [item["chunk_id"] for item in matches],
                     "answer": result["answer"],
+                    "retrieved_pages": sorted({p for item in matches for p in range(item["page_start"], item["page_end"] + 1)}),
+                    "visual_evidence_pages": result["visual_evidence_pages"],
+                    "evidence_pages": result["evidence_pages"],
+                    "citation_valid_format": result["citation_valid_format"],
+                    "citation_page_in_context": result["citation_page_in_context"],
                     "latency_seconds": result["latency_seconds"],
                     "citations": result["citations"],
                     "invalid_citations": result["invalid_citations"],

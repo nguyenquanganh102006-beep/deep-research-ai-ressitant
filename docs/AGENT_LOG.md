@@ -852,3 +852,29 @@ Commit chỉ gồm `README.md`: `3e73b436e3b9e8c4c1a15b6b0a452ffde692881b` (`Upd
 **Đã làm:** Stage có chọn lọc 34 file ngoài `data/`: `.gitignore`, requirements, công cụ `src/benchmark`, `src/catalog`, `src/corpus`, tests tương ứng, plan, docs và worklog. Không có đường dẫn `data/` trong index. Rà tên/nội dung staged và quét token/khóa phổ biến; không có match bí mật. Cập nhật `docs/BENCHMARK_DATASET_SUMMARY.md` để phản ánh `test_data.h5` và `source.zip` đã tải, checksum/size khớp manifest; SciCode harness vẫn chưa chạy. Không chạy test suite. `git diff --cached --check` báo hai trailing spaces ở dòng 5–6 của plan, là line break Markdown có sẵn trong tài liệu.
 
 Commit `e49a9f3` (`Add benchmark and corpus tooling`) đã push thành công lên `origin/main`, sau commit README `3e73b43`. Các file dataset trong `data/` vẫn ở local và không bị xóa hoặc sửa. Lần đọc header plan đầu tiên bị lỗi xuất Unicode CP1252; đã đọc lại bằng UTF-8, không ảnh hưởng file.
+
+
+## 2026-11-12 21:32 +0700 — Đọc plan kiểm tra pipeline MVP
+
+Yêu cầu: đọc plan và xác định việc cần làm. Đã đọc plan/PLAN_KIEM_TRA_PIPELINE_MVP.md, đối chiếu ingest, Ollama check, evaluator và fixture. Xác nhận cache hiện chỉ kiểm parser/version và file tồn tại; check_ollama vẫn trả True khi thiếu model tag. Hai PDF fixture có sẵn; chưa có PIPELINE_SANITY_REPORT.md. Chưa chạy tests, ingestion hoặc generation trong lượt đánh giá này. Một lệnh liệt kê scripts báo thư mục chưa tồn tại; không ảnh hưởng dữ liệu. Cần Gate 0–6, test cache/artifact/model-tag và báo cáo; chưa triển khai sửa.
+
+
+## 2026-11-12 21:44 +0700 — Thực hiện plan kiểm tra pipeline MVP
+
+Đã đọc plan và code ingest/LLM/retrieval/evaluator/UI. Gate 0 xác nhận RTX 4050 Laptop 6GB, driver 536.52, Ollama 0.40.16; venv cũ Python 3.10.11. Đã tải qwen3.5:2b; smoke math/code hoàn tất, 100% GPU, không OOM. 26 unit tests ban đầu pass. Đang tạo venv Python 3.11 riêng theo plan, cài CPU torch và requirements, log tmp_sanity_install.log.
+
+Đã sửa cache theo model/revision/config fingerprint, kiểm vector/chunk/page/dtype/norm và rebuild cache lỗi; kiểm readiness model tag; tách citation context và trang ảnh, từ chối câu trả lời rỗng; bổ sung script smoke_e2e và 7 regression tests. Adam 15 trang/39 chunks, FlashAttention 34 trang/76 chunks, ingest và repeat cache ban đầu đạt. Adam hoàn tất 15/15 generation; Flash đang chạy. Artifact sanity lưu riêng data/pipeline_sanity/, được ignore Git.
+
+Đọc skill computer-use và thử native/browser: native pipe unavailable, browser inventory rỗng; chưa kiểm tra được UI bằng màn hình. AppTest render/preview/reload cả hai PDF không exception; lần assert đầu bị encoding chuỗi tiếng Việt trong shell, đã sửa cách assert và chạy lại pass. Endpoint không truy cập và model không tồn tại được kiểm thực tế, trả timeout/404 đúng. Không dừng Ollama đang phục vụ. Còn hoàn tất Python 3.11, Flash E2E, tests và báo cáo gate có giới hạn UI.
+
+
+**Chốt kiểm tra tự động:** Đã cài xong `.venv-sanity311` Python 3.11.9; pip check không có dependency hỏng; freeze ở data/pipeline_sanity/environment311.txt. PowerShell wrapper install trả 1 do notice pip trên stderr (NativeCommandError), trong log có Successfully installed; xác minh lại bằng pip check và tests thành công. 36 tests pass (26 cũ + 10 sanity). Bổ sung kiểm source SHA, fingerprint parser/package/chunk config, guard UI index dở/hỏng, kiểm query/vector và evaluator exit code/class lỗi. Không tối ưu prompt/ranking/accuracy.
+
+Run 3.11 tách data/pipeline_sanity/py311: Adam 15 trang/39 chunks, FlashAttention 34 trang/76 chunks, vector 384 float32 normalized, upload lại dùng cache. Standalone E2E 30 câu không rỗng, 17 thiếu citation được cảnh báo, 0 citation ngoài context; retrieval 13/13 và 12/13 câu có GT. Evaluator CLI retrieval và generation đều exit 0; run CLI riêng 30 output, 10 thiếu citation, 0 lỗi kỹ thuật/0 citation ngoài context. Các lần chạy riêng không gộp thành quality score. AppTest 3.11 render/preview/reload, 6 QA text/math/code, lỗi QA rồi phục hồi, upload handler fixture và cache đều đạt. Native browser vẫn không khả dụng; Opera connector yêu cầu reauthentication. Ollama smoke 3.11 warm math/code 0,57s/0,56s, 100% GPU ~2940MiB. Streamlit sanity chạy http://127.0.0.1:8502, health ok (session 4333).
+
+Đã tạo docs/PIPELINE_SANITY_REPORT.md; cập nhật README phần cứng/report link và ghi kết quả thực thi vào plan. Những lệnh đọc JSON bằng encoding mặc định bị lỗi Unicode đã chạy lại UTF-8; không ảnh hưởng dữ liệu. Report phân biệt mock/headless/API và native UI chưa kiểm. Chưa gắn nhãn Pipeline Ready hoặc freeze pipeline_baseline_v1 vì bước browser thực còn chặn. Các thay đổi hiện local; không push hoặc đưa dataset/model weights vào Git trong lượt này.
+
+
+## 2026-11-12 22:15 +0700 — Commit và push pipeline sanity
+
+Yêu cầu: push thay đổi pipeline lên Git. Rà status/diff và chỉ chọn code, README, report, plan, script, tests và gitignore; loại toàn bộ data/ và venv/log local. Kết quả kiểm thử trước commit: 36 tests Python 3.11 pass; gate native UI vẫn blocked như report, chưa freeze baseline. Thực hiện commit/push main và đối chiếu SHA remote sau push; không chạy lại tests vì không có thay đổi implementation sau lần kiểm chứng cuối.

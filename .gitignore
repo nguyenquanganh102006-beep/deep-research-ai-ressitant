@@ -20,3 +20,9 @@ data/benchmark/external/scicode/raw/
 data/benchmark/external/scicode/source.zip
 data/benchmark/external/scicode/test_data.h5
 data/benchmark/curated_v1/staging/review/
+
+data/pipeline_sanity/
+
+.venv-sanity311/
+tmp_sanity_install.log
+tmp_pipeline_ollama.log
