@@ -200,3 +200,14 @@ def score_main():
     from src.benchmark.scoring_local import score_run
     print({'metric_groups': len(score_run(args.run_dir, args.reviews)), 'output': str(args.run_dir)})
     return 0
+
+
+def leaderboard_main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--run-dir', type=Path, required=True)
+    args = p.parse_args()
+    from src.benchmark.scoring_local import export_metrics
+    metrics = read_json(args.run_dir / 'metrics.json')
+    export_metrics(metrics, args.run_dir)
+    print({'rendered_metric_groups': len(metrics), 'output': str(args.run_dir)})
+    return 0

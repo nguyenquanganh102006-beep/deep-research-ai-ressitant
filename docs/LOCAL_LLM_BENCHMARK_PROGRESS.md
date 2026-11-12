@@ -7,13 +7,13 @@ Cập nhật: 2026-11-12T23:08+07:00. Đây là kết quả foundation/framework
 | Task | Trạng thái | Bằng chứng |
 |---|---|---|
 | 1. Foundation | PASS integrity/API; snapshot tài nguyên có guard | Baseline sanity `44be0c4`; dev 120 câu/12 PDF, 133 evidence khớp sidecar SHA; Adam/Flash smoke từ commit mới đều exit 0 |
-| 2. Config/adapter | Có bản đầu | Registry 32 tag (23 A/9 B), runtime mới có Qwen 2B/4B; digest/quant/capability/think/context và lỗi được log |
+| 2. Config/adapter | Có bản đầu | Registry 32 tag (23 A/9 B), runtime có Qwen 2B/4B; latest preflight chỉ 2B ready, 4B resource_ineligible do RAM; digest/quant/capability được giữ |
 | 3. Evidence | Có packet và gate review | 120 gold packets: 2 có receipt AI, 118 unverified; 2 packet RAG đóng băng và vision dẫn xuất từ đúng packet text |
 | 4. Runner | Smoke trước commit PASS | Acceptance tại `a772079`: Gold 4/4 và RAG 4/4 completed; mỗi track resume tạo 0 dòng mới. Bản bổ sung log retry được regression và smoke riêng sau commit |
 | 5. Scoring/report | Có auto metrics và blind review | Correctness/citation support giữ null; CSV, report, template đã sinh; chưa có rubric score/paired quality/Pareto để chọn winner |
 | 6–8. Screening/full dev/final test | Chưa chạy | Không dùng test frozen; chưa chọn finalist hoặc model thắng |
 
-Regression hiện tại: **54 tests PASS** (36 cũ + 18 benchmark mới), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
+Regression hiện tại: **55 tests PASS** (36 cũ + 19 benchmark mới), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
 
 ## Snapshot và phạm vi
 
@@ -55,7 +55,7 @@ Artifact local, không commit:
 
 Tại baseline framework `a772079`, Gold và Fixed-RAG mỗi track chạy Qwen 2B Q8_0 / Qwen 4B Q4_K_M trên cùng 2 ID: 8/8 output completed, cùng input hash theo question ID, mọi CLI/score/resume exit 0, resume tạo 0 dòng mới. Mỗi track có 2 output thiếu citation và 1 output chạm giới hạn 512 token; giữ nguyên và flag, không sửa prompt riêng. GPU placement của các lượt đã quan sát là GPU-only ở context 4096. Không suy ra model thắng từ 8 output này hoặc trộn tác động size với quantization.
 
-Artifacts: `framework_acceptance_gold_v1/`, `framework_acceptance_rag_v1/`, `framework_acceptance_status.json` dưới `data/benchmark/local_llm_runs/`. Scoring và template đã xuất; correctness vẫn null. Bổ sung sau acceptance: log mọi transient retry, giữ số failed attempts và total wall time để không che lỗi sau retry thành công; regression 54 pass. Acceptance cuối cho logging baseline dùng `framework_final_gold_v1/`.
+Artifacts: `framework_acceptance_gold_v1/`, `framework_acceptance_rag_v1/`, `framework_acceptance_status.json` dưới `data/benchmark/local_llm_runs/`. Scoring và template đã xuất; correctness vẫn null. Bổ sung sau acceptance: log mọi transient retry, giữ số failed attempts và total wall time để không che lỗi sau retry thành công; regression 55 pass. Acceptance cuối sau hardening bị dừng ở preflight vì chỉ 2B ready; xem `framework_final_status.json`. Không tạo run 1-model rồi gọi là acceptance 2-model. Các run a772079 vẫn là bằng chứng smoke tại đúng commit đó, không resume chúng từ code mới.
 
 ## Chạy acceptance từ code đã khóa
 
@@ -71,3 +71,12 @@ API tham chiếu: [Ollama chat](https://docs.ollama.com/api/chat), [model list](
 
 
 Preflight đã ghi nhận một lần 4B bị `resource_ineligible` khi RAM available giảm sau smoke 2B; snapshot giữ tại `preflight_resource_limited_v1.json`. Sau unload đã đo lại ~3,5GiB available. Metadata installed/digest/quant được giữ ngay cả khi smoke bị chặn; không đồng nhất “installed” với “ready”. Code đã có regression cho trường hợp này.
+
+
+## Trạng thái cuối lượt foundation
+
+- Preflight mới (`preflight_refreshed_v2/`) đã qua integrity/disk/RAM gate lúc bắt đầu nhưng chặn 4B ở gate RAM trước smoke; 2B ready, 4B installed nhưng chưa ready ở snapshot này, 30 tag khác chưa installed. Không suy rằng 4B không thể chạy trên6GB: acceptance trước đó đã quan sát GPU-only thành công, tài nguyên RAM available thay đổi theo thời điểm.
+- `framework_final_status.json` ghi `resource_or_preflight_pending`; chưa chạy matrix screening12 hoặc full120.
+- 55 tests đạt, gồm kiểm 120-case mock, retry history, giữ metadata model khi RAM fail và dựng leaderboard không reset metrics/review. CLI leaderboard thực đã giữ nguyên hash metrics khi render lại.
+- Code đã commit local theo các bước foundation/hardening; chưa push. Dataset/model weights/packet/output vẫn ở ngoài Git. Run mới phải dùng baseline/hash mới, không nối vào các run từ code cũ.
+- Việc tiếp theo là review 10 câu screen còn lại và có snapshot RAM ổn định đủ cho batch, rồi mới model discovery/screening. Chưa có điểm correctness để chọn model thắng.

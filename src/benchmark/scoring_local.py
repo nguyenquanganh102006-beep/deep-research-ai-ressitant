@@ -106,14 +106,20 @@ def score_run(run_dir: Path, review_path: Path | None = None):
     existing_ids = {r['review_id'] for r in read_rows(target)} if target.exists() else set()
     with target.open('ab') as f:
         f.write(b''.join(canonical(r) + b'\n' for r in template if r['review_id'] not in existing_ids))
-    with (run_dir / 'leaderboard.csv').open('w', encoding='utf-8', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=list(metrics[0]) if metrics else ['model_tag'])
-        writer.writeheader()
-        writer.writerows(metrics)
+    export_metrics(metrics, run_dir)
     with (run_dir / 'errors.csv').open('w', encoding='utf-8', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=['model_tag', 'question_id', 'status', 'error'])
         writer.writeheader()
         writer.writerows({k: r.get(k) for k in writer.fieldnames} for r in rows if r['status'] != 'completed')
+    return metrics
+
+
+def export_metrics(metrics: list[dict], run_dir: Path):
+    """Render already-scored metrics without touching reviews or scores."""
+    with (run_dir / 'leaderboard.csv').open('w', encoding='utf-8', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=list(metrics[0]) if metrics else ['model_tag'])
+        writer.writeheader()
+        writer.writerows(metrics)
     text = ['# Local LLM run report', '',
             'Correctness remains null until explicit rubric review. Citation format is a separate automatic diagnostic.', '',
             '| Model | Track | Eligible | Completed | Technical failures | Reviewed | Citation presence |',
@@ -123,4 +129,3 @@ def score_run(run_dir: Path, review_path: Path | None = None):
             text.append(f"| {m['model_tag']} | {m['track']} | {m['eligible_cases']} | {m['completed']} | {m['technical_failure_count']} | {m['reviewed_completed']} | {m['citation_presence_rate']} |")
     text += ['', 'No winner is selected automatically from unreviewed outputs. Full digest, protocol and hashes: manifest.json.']
     (run_dir / 'report.md').write_text('\n'.join(text) + '\n', encoding='utf-8')
-    return metrics

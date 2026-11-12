@@ -54,6 +54,23 @@ class FakeAdapter:
 
 
 class LocalBenchmarkTests(unittest.TestCase):
+    def test_leaderboard_render_does_not_reset_reviewed_metrics(self):
+        from src.benchmark.local_cli import leaderboard_main
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metrics = [{'model_tag': 'model', 'track': 'gold_text_verified', 'category': 'all',
+                        'eligible_cases': 1, 'completed': 1, 'technical_failure_count': 0,
+                        'reviewed_completed': 1, 'citation_presence_rate': 1,
+                        'correctness_all_eligible': 1}]
+            source = canonical(metrics)
+            (root / 'metrics.json').write_bytes(source)
+            (root / 'review_template.jsonl').write_text('keep reviewer edits', encoding='utf-8')
+            with patch('sys.argv', ['leaderboard', '--run-dir', tmp]):
+                self.assertEqual(leaderboard_main(), 0)
+            self.assertEqual((root / 'metrics.json').read_bytes(), source)
+            self.assertEqual((root / 'review_template.jsonl').read_text(encoding='utf-8'), 'keep reviewer edits')
+            self.assertTrue((root / 'leaderboard.csv').exists())
+
     def test_preflight_preserves_installed_metadata_when_ram_gate_fails(self):
         from types import SimpleNamespace
         from src.benchmark.local_cli import preflight_main
