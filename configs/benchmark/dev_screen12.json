@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "split": "dev",
+  "selection": "SHA256 ID order; prefer distinct papers; 3 per category",
+  "question_ids": [
+    "math-0064",
+    "math-0139",
+    "math-0122",
+    "code-0065",
+    "code-0093",
+    "code-0041",
+    "table-0099",
+    "table-0011",
+    "table-0059",
+    "negative-0037",
+    "negative-0058",
+    "negative-0039"
+  ],
+  "selection_sha256": "3a013bbaf7f977ce60cc55fa828f94421a16f6a10ec01471e9e4c68aa8908c92"
+}

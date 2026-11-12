@@ -26,3 +26,6 @@ data/pipeline_sanity/
 .venv-sanity311/
 tmp_sanity_install.log
 tmp_pipeline_ollama.log
+
+data/benchmark/local_llm_runs/
+data/benchmark/local_llm_packets/

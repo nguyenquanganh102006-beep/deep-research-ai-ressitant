@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "tag": "qwen3.5:0.8b",
+      "stage": "A",
+      "expected_vision": true,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen3.5:2b",
+      "stage": "A",
+      "expected_vision": true,
+      "initial_batch": true,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen3.5:4b",
+      "stage": "A",
+      "expected_vision": true,
+      "initial_batch": true,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "gemma3:1b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "gemma3:4b",
+      "stage": "A",
+      "expected_vision": true,
+      "initial_batch": true,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "ministral-3:3b",
+      "stage": "A",
+      "expected_vision": true,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen3:0.6b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen3:1.7b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen3:4b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": true,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5:0.5b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5:1.5b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5:3b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5-coder:0.5b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5-coder:1.5b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5-coder:3b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": true,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "phi4-mini:3.8b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": true,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "phi4-mini-reasoning:3.8b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "llama3.2:1b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "llama3.2:3b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "deepseek-r1:1.5b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "granite4:3b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "granite3.3:2b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "granite3.2:2b",
+      "stage": "A",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5:7b",
+      "stage": "B",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen2.5-coder:7b",
+      "stage": "B",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen3:8b",
+      "stage": "B",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "deepseek-r1:7b",
+      "stage": "B",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "mistral:7b",
+      "stage": "B",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "granite3.3:8b",
+      "stage": "B",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "olmo-3:7b-instruct",
+      "stage": "B",
+      "expected_vision": false,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "ministral-3:8b",
+      "stage": "B",
+      "expected_vision": true,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    },
+    {
+      "tag": "qwen3.5:9b",
+      "stage": "B",
+      "expected_vision": true,
+      "initial_batch": false,
+      "capability_source": "expected from plan; runtime /api/show is authoritative"
+    }
+  ]
+}

@@ -878,3 +878,19 @@ Run 3.11 tách data/pipeline_sanity/py311: Adam 15 trang/39 chunks, FlashAttenti
 ## 2026-11-12 22:15 +0700 — Commit và push pipeline sanity
 
 Yêu cầu: push thay đổi pipeline lên Git. Rà status/diff và chỉ chọn code, README, report, plan, script, tests và gitignore; loại toàn bộ data/ và venv/log local. Kết quả kiểm thử trước commit: 36 tests Python 3.11 pass; gate native UI vẫn blocked như report, chưa freeze baseline. Thực hiện commit/push main và đối chiếu SHA remote sau push; không chạy lại tests vì không có thay đổi implementation sau lần kiểm chứng cuối.
+
+
+## 2026-11-12 22:28 +0700 — Đọc plan benchmark local LLM
+
+Yêu cầu: đọc PLAN_BENCHMARK_LOCAL_LLM_DEEPRESEARCH.md. Đã đọc các track, 32 ứng viên, phase/gate, scoring, deliverables và đối chiếu runner PDF hiện tại/Git. Main thực tế đã là 44be0c4, khác ghi chú 25180cb trong plan. Browser UI được plan tách khỏi batch benchmark headless. Framework/config/packet mới chưa triển khai; oracle hiện tại chưa tương đương verified gold text. Chỉ đọc/đối chiếu; không pull model, chạy benchmark, đọc test frozen hoặc sửa dataset. Bước đầu phù hợp là Task 1 foundation/dev validation, sau đó config/adapter và evidence packets.
+
+
+## 2026-11-12T23:08+07:00 — Bắt đầu plan benchmark local LLM
+
+Đã thực hiện foundation: HEAD sanity44be0c4, đọc chỉ dev120 và manifest46paper, kiểm 12 PDF dùng trong dev và133 evidence sidecar SHA/quote/page; validation pass, không mở test_frozen. Smoke Adam/Flash chạy lại từ commit mới, exit0. Khóa screen12 trước output (3/category,11paper,3easy/6medium/3hard,10VI/2EN).
+
+Tạo config32models/protocol/prompt chung JSON, adapter local loopback pin digest/quant/capability/context/think, error/empty/OOM/timeout, packet builder immutable, review receipts khớp source+correctedhash, frozen RAG và vision chỉtrangretrieval, runner tuần tự global lock/resume/retry, scorer null correctness/blind review/CSV/report. Không sửa run_pdf/run_qasper hoặc core parser/retriever. Đã đọc skill PDF, render/xem fullpage3 của2PDF cho2case smoke. Math quote hỏng dấu căn được chép lại đúng ảnh trong eval-only sidecar; receipt AI, không human/expert claim. Poppler có warningfont nhưng ảnh kiểm tra đọc được.
+
+Preflight32 ứng viên có2installed (Qwen2B/4B); không pull thêm. Snapshot đầu khi index/smoke chạy cóRAM0,4GiB; sau process kết thúc snapshot ổn định qua guardRAM2GiB/disk30GiB. Thêm runtimeguard0,5GiB và modeldiskbudget40GiB. Framework smoke trước hardening4/4completed, resume0rows; scorer xuấtmetrics chưareview nêncorrectnessnull. Gold120packets có2receiptAI và118unverified; frozen RAG/vision2packet. 52tests PASS gồm16benchmarktests mới, có120case mockcheckpoint, resume/digest/context/vision/leakage/scoring/resources. Log/output trong data/benchmark/local_llm_runs/, packets ở data/benchmark/local_llm_packets/, tất cả ignoreGit.
+
+Đã tạo docs/LOCAL_LLM_BENCHMARK_PROGRESS.md, cập nhật README link. Chuẩn bị commit local code/config/test/docs để khóa baseline rồi chạy acceptance Gold/RAG sau commit. Không có qualityleaderboard hoặc chọnwinner, không chạy268test. Docs URL Ollama show gặp404, dựa capability /api/show local thực; APIchat/tags/ps đối chiếu docs official. Cònreview10screen, modeldiscovery lớn vàrubric/pairedanalysis trướcfullbenchmark.

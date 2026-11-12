@@ -1,0 +1,210 @@
+"""Sequential, hash-locked local model comparisons. No reference labels enter prompts."""
+from __future__ import annotations
+
+import subprocess
+import time
+import platform
+import importlib.metadata
+import psutil
+from pathlib import Path
+
+from config import PROJECT_ROOT
+from src.benchmark.local_common import (CONFIG, canonical, fingerprint, file_hash, read_rows,
+                                        read_json, write_json, append_jsonl)
+from src.benchmark.local_llm_adapter import OllamaAdapter, ModelError
+from src.metrics import capture_resource_metrics as _capture_resource_metrics
+from src.benchmark.local_common import file_lock, RUNS
+
+
+def capture_resource_metrics():
+    return {**_capture_resource_metrics(), 'ram_available_bytes': psutil.virtual_memory().available}
+
+
+def messages_for(packet: dict, prompt: str, protocol: dict) -> tuple[list, list[int]]:
+    if (protocol['max_input_utf8_bytes'] + protocol['num_predict']
+            + protocol['template_token_reserve'] > protocol['num_ctx']):
+        raise ValueError('Protocol text/output/template budgets exceed context')
+    # Whitelist fields; never serialize a QA/evaluator record into the model input.
+    remaining = protocol['max_evidence_utf8_bytes']
+    sections, pages = [], set()
+    for e in packet['evidence']:
+        header = f"Paper {e['paper_id']} | Trang {e['page_start']}-{e['page_end']}\n"
+        budget = remaining - len(header.encode('utf-8'))
+        if budget <= 0:
+            if packet['track'] == 'gold_text_verified':
+                raise ModelError('context_ineligible', 'Gold evidence cannot be silently truncated')
+            break
+        original = e['content'].encode('utf-8')
+        if len(original) > budget and packet['track'] == 'gold_text_verified':
+            raise ModelError('context_ineligible', 'Gold evidence cannot be silently truncated')
+        text = original[:budget].decode('utf-8', errors='ignore')
+        if not text:
+            continue
+        sections.append(header + text + ('\n[truncated]' if len(original) > budget else ''))
+        remaining -= len((sections[-1] + '\n').encode('utf-8'))
+        pages.update(range(e['page_start'], e['page_end'] + 1))
+    image_pages = [i['page'] for i in packet.get('images', [])]
+    pages.update(image_pages)
+    image_note = '\nImage page order: ' + ', '.join(map(str, image_pages)) if image_pages else ''
+    user = 'QUESTION\n' + packet['question'] + '\n\nEVIDENCE\n' + '\n\n'.join(sections) + image_note
+    messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': user}]
+    size = sum(len(m['content'].encode('utf-8')) for m in messages)
+    # Conservative byte budget; retain actual prompt_eval_count too. No per-model trimming.
+    if size > protocol['max_input_utf8_bytes']:
+        raise ModelError('context_ineligible', f'Common prompt byte budget exceeded: {size}')
+    return messages, sorted(pages)
+
+
+def run(*args, **kwargs):
+    with file_lock(RUNS / '.runtime.lock'):
+        return _run(*args, **kwargs)
+
+
+def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
+        retry_failed=False, dry_run=False, adapter=None):
+    adapter = adapter or OllamaAdapter()
+    if len(set(tags)) != len(tags):
+        raise ValueError('Duplicate model tags')
+    packets = read_rows(packets_path)
+    if not packets or any(p.get('split') != 'dev' for p in packets):
+        raise ValueError('Only nonempty dev packet files are supported')
+    tracks = {p['track'] for p in packets}
+    if len(tracks) != 1 or not tracks <= {'gold_text_verified', 'retrieved_text_frozen', 'retrieved_vision'}:
+        raise ValueError('One supported track per run is required')
+    if len({p['question_id'] for p in packets}) != len(packets):
+        raise ValueError('Duplicate question IDs')
+    for p in packets:
+        expected = p['packet_sha256']
+        if fingerprint({k: v for k, v in p.items() if k != 'packet_sha256'}) != expected:
+            raise ValueError('Packet hash mismatch')
+        if p['evidence_sha256'] != fingerprint({'evidence': p['evidence'], 'images': p['images']}):
+            raise ValueError('Evidence hash mismatch')
+        if p['track'] == 'gold_text_verified' and p['gold_evidence_status'] != 'unverified':
+            receipt = p.get('verification_receipt') or {}
+            if (receipt.get('verified') is not True
+                    or receipt.get('evidence_sha256') != p['evidence_sha256']
+                    or receipt.get('source_evidence_sha256') != p.get('source_evidence_sha256')
+                    or not all(receipt.get(k) for k in ('reviewer', 'method', 'reviewed_at', 'provenance'))):
+                raise ValueError('Missing/stale verification provenance')
+    protocol = read_json(CONFIG / 'protocol_v1.json')
+    prompt = (CONFIG / 'prompt_v1.txt').read_text(encoding='utf-8')
+    models = [adapter.inspect(tag) for tag in tags]
+    if len({m['model_digest'] for m in models}) != len(models):
+        raise ValueError('Model aliases resolve to the same digest')
+    try:
+        gpu = subprocess.check_output(['nvidia-smi', '--query-gpu=name,driver_version,memory.total',
+                                       '--format=csv,noheader'], text=True, timeout=10).strip()
+    except (OSError, subprocess.SubprocessError):
+        gpu = None
+    environment = {'python': platform.python_version(), 'os': platform.platform(), 'gpu': gpu,
+                   'ollama': adapter.request('GET', '/api/version') if hasattr(adapter, 'request') else 'mock',
+                   'packages': {p: importlib.metadata.version(p) for p in ('requests', 'numpy', 'ollama')}}
+    prompt_hash = file_hash(CONFIG / 'prompt_v1.txt')
+    lock = {'schema_version': 1, 'packets_sha256': file_hash(packets_path), 'environment': environment,
+            'protocol': protocol, 'prompt_sha256': prompt_hash,
+            'models': models,
+            'git_sha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=PROJECT_ROOT, text=True).strip(),
+            'code_sha256': {str(p.relative_to(PROJECT_ROOT)): file_hash(p) for p in
+                            sorted((PROJECT_ROOT / 'src/benchmark').glob('*.py'))}}
+    lock_hash = fingerprint(lock)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = run_dir / 'manifest.json'
+    if manifest_path.exists():
+        if not resume or read_json(manifest_path)['lock_sha256'] != lock_hash:
+            raise ValueError('Existing run or changed inputs/config/model/code; use a new run ID')
+    else:
+        write_json(manifest_path, {'lock_sha256': lock_hash, **lock,
+                                  'resource_snapshot': capture_resource_metrics(),
+                                  'context_policy_note': 'Conservative common UTF-8 text byte guard plus observed prompt_eval_count; image token count is not pretokenized.'})
+    predictions = run_dir / 'predictions.jsonl'
+    previous = {(r['model_digest'], r['question_id']): r for r in read_rows(predictions)} if predictions.exists() else {}
+    if dry_run:
+        preview = []
+        for packet in packets:
+            try:
+                messages, pages = messages_for(packet, prompt, protocol)
+                preview.append({'id': packet['question_id'], 'input_sha256': fingerprint(messages),
+                                'allowed_pages': pages, 'gold_status': packet['gold_evidence_status']})
+            except ModelError as exc:
+                preview.append({'id': packet['question_id'], 'status': exc.status})
+        write_json(run_dir / 'dry_run.json', preview)
+        return preview
+    # OS advisory lock stops concurrent runners sharing one run directory.
+    with file_lock(run_dir / '.run.lock'):
+        rows = []
+        for model in models:
+            tag, digest = model['model_tag'], model['model_digest']
+            pending = [p for p in packets if (digest, p['question_id']) not in previous
+                       or (retry_failed and previous[(digest, p['question_id'])]['status'] not in
+                           {'completed', 'evidence_unverified', 'not_applicable', 'context_ineligible'})]
+            if not pending:
+                continue
+            # Unload other models before warmup; never delete weights.
+            for running in adapter.running():
+                if running.get('name', running.get('model')) != tag:
+                    adapter.unload(running.get('name', running.get('model')))
+            warm_error = None
+            eligible = [p for p in pending if not
+                        (p['track'] == 'gold_text_verified' and p['gold_evidence_status'] == 'unverified')
+                        and not (p['track'] == 'retrieved_vision' and not model['vision'])]
+            if eligible:
+                try:
+                    resources = capture_resource_metrics()
+                    if resources.get('ram_available_bytes', float('inf')) < protocol['minimum_ram_gb'] * 1024**3:
+                        raise ModelError('resource_ineligible', 'Insufficient available RAM before model load')
+                    warm = adapter.chat(model, [{'role': 'user', 'content': 'Reply OK.'}], protocol)
+                    append_jsonl(run_dir / 'usage.jsonl', {'model_tag': tag, 'phase': 'warmup', **warm})
+                except ModelError as exc:
+                    warm_error = exc
+            try:
+                for packet in pending:
+                    row = {'run_id': run_dir.name, 'track': packet['track'], 'split': 'dev',
+                           'question_id': packet['question_id'], 'category': packet['category'],
+                           'paper_ids': packet['paper_ids'], 'model_tag': tag, 'model_digest': digest,
+                           'quantization': model['quantization'], 'thinking_mode': model['thinking_mode'],
+                           'prompt_sha256': prompt_hash, 'evidence_sha256': packet['evidence_sha256'],
+                           'packet_sha256': packet['packet_sha256'], 'correctness': None,
+                           'citation_supported': None, 'review_status': 'pending', 'answer': None,
+                           'attempt': previous.get((digest, packet['question_id']), {}).get('attempt', 0) + 1}
+                    try:
+                        if packet['track'] == 'gold_text_verified' and packet['gold_evidence_status'] == 'unverified':
+                            raise ModelError('evidence_unverified', 'Explicit matching evidence review receipt required')
+                        if packet['track'] == 'retrieved_vision' and not model['vision']:
+                            raise ModelError('not_applicable', 'No vision capability')
+                        if warm_error:
+                            raise warm_error
+                        messages, pages = messages_for(packet, prompt, protocol)
+                        row['input_sha256'] = fingerprint(messages)
+                        row['allowed_pages'] = pages
+                        row['resources_before'] = capture_resource_metrics()
+                        if row['resources_before'].get('ram_available_bytes', float('inf')) < protocol['minimum_runtime_ram_gb'] * 1024**3:
+                            raise ModelError('resource_ineligible', 'Available RAM fell below runtime safety budget')
+                        images = [{**i, 'absolute_path': str(PROJECT_ROOT / i['path'])} for i in packet['images']]
+                        for attempt in range(protocol['retry'] + 1):
+                            try:
+                                output = adapter.chat(model, messages, protocol, images)
+                                break
+                            except ModelError as exc:
+                                if exc.status != 'endpoint_error' or attempt >= protocol['retry']:
+                                    raise
+                                time.sleep(1)
+                        if (output.get('prompt_eval_count') or 0) + protocol['num_predict'] > protocol['num_ctx']:
+                            raise ModelError('context_ineligible', 'Observed prompt plus reserved output exceeds context')
+                        row.update(output)
+                        row['status'] = 'completed'
+                        row['resources_after'] = capture_resource_metrics()
+                        row['placement'] = adapter.running()
+                        append_jsonl(run_dir / 'usage.jsonl', {
+                            'model_tag': tag, 'question_id': packet['question_id'], 'phase': 'recorded',
+                            **{k: row.get(k) for k in ('latency_seconds', 'total_duration', 'load_duration',
+                               'prompt_eval_count', 'eval_count', 'eval_duration', 'placement',
+                               'resources_before', 'resources_after')}})
+                        from src.benchmark.scoring_local import citation_metrics
+                        row.update(citation_metrics(row['answer'], pages))
+                    except ModelError as exc:
+                        row.update(status=exc.status, error=str(exc))
+                    append_jsonl(predictions, row)
+                    rows.append(row)
+            finally:
+                adapter.unload(tag)
+        return rows

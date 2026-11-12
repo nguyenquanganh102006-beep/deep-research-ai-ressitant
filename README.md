@@ -123,6 +123,8 @@ QASPER paragraph retrieval trên dev, theo báo cáo hiện có (902/1.005 câu 
 
 Đây là retrieval trên dev, không phải answer accuracy, page citation hay kết quả test. PDF QA chưa có benchmark toàn bộ; LitQA2 chưa có runner; SciCode chưa chạy harness. Smoke retrieval của Corpus C chỉ là kiểm tra vận hành, không phải QA benchmark. Vì vậy chưa có điểm tổng hợp cho toàn bộ nguồn.
 
+Tiến độ framework benchmark nhiều local LLM: [LOCAL_LLM_BENCHMARK_PROGRESS.md](docs/LOCAL_LLM_BENCHMARK_PROGRESS.md). Chưa có leaderboard correctness đã chấm.
+
 ## Giới hạn hiện tại
 
 - Một PDF đang hoạt động tại một thời điểm; ưu tiên PDF digital/text-based.

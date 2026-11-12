@@ -1,0 +1,9 @@
+{
+  "split": "dev",
+  "question_ids": [
+    "math-0064",
+    "code-0065"
+  ],
+  "purpose": "framework acceptance only; fixed before outputs",
+  "parent_sample": "dev_screen12.json"
+}
