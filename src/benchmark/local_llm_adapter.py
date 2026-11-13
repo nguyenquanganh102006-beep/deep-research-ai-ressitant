@@ -13,9 +13,23 @@ from src.benchmark.local_common import file_hash
 
 
 class ModelError(RuntimeError):
-    def __init__(self, status: str, message: str):
+    def __init__(self, status: str, message: str, diagnostics=None):
         super().__init__(message)
         self.status = status
+        self.diagnostics = diagnostics or {}
+
+
+def extract_final_answer(content):
+    """Exclude leading inline reasoning blocks, including unfinished blocks."""
+    answer = str(content or '').strip()
+    inline_thinking = False
+    while answer.lower().startswith('<think>'):
+        inline_thinking = True
+        end = answer.lower().find('</think>')
+        if end < 0:
+            return '', inline_thinking
+        answer = answer[end + len('</think>'):].strip()
+    return answer, inline_thinking
 
 
 class OllamaAdapter:
@@ -101,14 +115,17 @@ class OllamaAdapter:
             payload['think'] = False
         started = time.perf_counter()
         response = self.request('POST', '/api/chat', payload)
-        answer = str(response.get('message', {}).get('content') or '').strip()
-        if not answer:
-            raise ModelError('empty_output', 'Model returned no answer text')
-        return {'answer': answer, 'raw_answer': response.get('message', {}).get('content'),
-                'thinking_present': bool(response.get('message', {}).get('thinking')),
+        message = response.get('message', {})
+        answer, inline_thinking = extract_final_answer(message.get('content'))
+        output = {'answer': answer, 'raw_answer': message.get('content'),
+                'thinking_present': bool(message.get('thinking')) or inline_thinking,
+                'inline_thinking_present': inline_thinking,
                 'output_truncated': response.get('done_reason') == 'length',
                 'decode_tokens_per_second': response.get('eval_count', 0) * 1e9 / response['eval_duration']
                     if response.get('eval_duration') else None,
                 'latency_seconds': round(time.perf_counter() - started, 4),
                 **{k: response.get(k) for k in ('done_reason', 'total_duration', 'load_duration',
                     'prompt_eval_count', 'prompt_eval_duration', 'eval_count', 'eval_duration')}}
+        if not answer:
+            raise ModelError('empty_output', 'Model returned no final answer text', output)
+        return output

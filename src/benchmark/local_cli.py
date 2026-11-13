@@ -108,6 +108,8 @@ def preflight_main():
                         adapter.unload(model['tag'])
         except ModelError as exc:
             row.update(status=exc.status, error=str(exc))
+            if exc.diagnostics:
+                row['smoke_error_diagnostics'] = exc.diagnostics
         rows.append(row)
     write_json(args.output / 'preflight.json', rows)
     print({'environment': str(args.output), 'dataset_passed': dataset_ok, 'resource_passed': resource_ok,

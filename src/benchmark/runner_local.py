@@ -110,7 +110,10 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
     run_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = run_dir / 'manifest.json'
     if manifest_path.exists():
-        if not resume or read_json(manifest_path)['lock_sha256'] != lock_hash:
+        existing_manifest = read_json(manifest_path)
+        if existing_manifest.get('analysis_only'):
+            raise ValueError('Analysis-only views cannot be resumed as inference runs')
+        if not resume or existing_manifest['lock_sha256'] != lock_hash:
             raise ValueError('Existing run or changed inputs/config/model/code; use a new run ID')
     else:
         write_json(manifest_path, {'lock_sha256': lock_hash, **lock,
@@ -209,6 +212,7 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                         from src.benchmark.scoring_local import citation_metrics
                         row.update(citation_metrics(row['answer'], pages))
                     except ModelError as exc:
+                        row.update(exc.diagnostics)
                         row.update(status=exc.status, error=str(exc))
                     row['case_wall_seconds'] = round(time.perf_counter() - case_started, 4)
                     append_jsonl(predictions, row)

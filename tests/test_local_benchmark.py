@@ -54,6 +54,90 @@ class FakeAdapter:
 
 
 class LocalBenchmarkTests(unittest.TestCase):
+    def setUp(self):
+        # Mock inference tests must not contend with a real benchmark/ingestion job.
+        runtime = tempfile.TemporaryDirectory()
+        self.addCleanup(runtime.cleanup)
+        isolation = patch('src.benchmark.runner_local.RUNS', Path(runtime.name))
+        isolation.start()
+        self.addCleanup(isolation.stop)
+
+    def test_normalized_view_preserves_source_and_failure_denominator(self):
+        from scripts.normalize_benchmark_answers import normalize
+        with tempfile.TemporaryDirectory() as tmp:
+            source, output = Path(tmp) / 'source', Path(tmp) / 'analysis'
+            source.mkdir()
+            base = {'run_id': 'r', 'track': 'gold_text_verified', 'model_tag': 'm',
+                    'model_digest': 'digest', 'category': 'math', 'evidence_sha256': 'e',
+                    'status': 'completed', 'latency_seconds': 1, 'allowed_pages': [1]}
+            rows = [{**base, 'question_id': 'q1', 'answer': '<think>Wrong [Trang 99]</think>Fact [Trang 1]'},
+                    {**base, 'question_id': 'q2', 'answer': '<think>Only reasoning [Trang 99]'}]
+            original = b''.join(canonical(row) + b'\n' for row in rows)
+            (source / 'predictions.jsonl').write_bytes(original)
+            (source / 'manifest.json').write_text('{"git_sha":"inference-baseline"}')
+            normalize(source, output)
+            self.assertEqual((source / 'predictions.jsonl').read_bytes(), original)
+            actual = read_rows(output / 'predictions.jsonl')
+            self.assertEqual(actual[0]['answer'], 'Fact [Trang 1]')
+            self.assertEqual(actual[0]['citations'], [1])
+            self.assertEqual(actual[1]['status'], 'empty_output')
+            self.assertEqual(actual[1]['raw_answer'], rows[1]['answer'])
+            receipt = {'review_id': review_id(actual[0]), 'correctness': 1,
+                       'reviewer': 'fixture', 'provenance': 'unit test'}
+            metric = next(m for m in summarize(actual, [receipt]) if m['category'] == 'all')
+            self.assertEqual(metric['technical_failure_count'], 1)
+            self.assertEqual(metric['correctness_all_eligible'], 0.5)
+            self.assertTrue(read_json(output / 'manifest.json')['analysis_only'])
+            with self.assertRaises(ValueError):
+                normalize(source, output)
+
+    def test_inline_reasoning_cannot_supply_answer_or_citations(self):
+        session = Mock()
+        response = session.request.return_value
+        response.status_code = 200
+        raw = '<think>Wrong claim [Trang 99]</think>Final fact [Trang 1]'
+        response.json.return_value = {'message': {'content': raw}, 'eval_count': 20,
+                                      'eval_duration': 1000000, 'done_reason': 'stop'}
+        adapter = OllamaAdapter(session=session)
+        model = {'model_tag': 'test', 'model_digest': 'digest', 'vision': False,
+                 'thinking_mode': 'native'}
+        with patch.object(adapter, 'inspect', return_value=model):
+            result = adapter.chat(model, [{'role': 'user', 'content': 'question'}], PROTOCOL)
+        self.assertEqual(result['answer'], 'Final fact [Trang 1]')
+        self.assertEqual(result['raw_answer'], raw)
+        self.assertTrue(result['thinking_present'])
+        self.assertEqual(citation_metrics(result['answer'], [1])['citations'], [1])
+
+    @patch('src.benchmark.runner_local.capture_resource_metrics', return_value={'ram_available_bytes': 3 * 1024**3})
+    def test_analysis_view_cannot_be_resumed_as_inference(self, _resources):
+        from scripts.normalize_benchmark_answers import normalize
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            packets = root / 'packets.jsonl'
+            packets.write_bytes(canonical(packet()) + b'\n')
+            run(packets, ['a'], root / 'original', adapter=FakeAdapter())
+            normalize(root / 'original', root / 'analysis')
+            with self.assertRaisesRegex(ValueError, 'Analysis-only'):
+                run(packets, ['a'], root / 'analysis', resume=True, adapter=FakeAdapter())
+
+    def test_thinking_only_response_is_failure_with_usage_preserved(self):
+        session = Mock()
+        response = session.request.return_value
+        response.status_code = 200
+        adapter = OllamaAdapter(session=session)
+        model = {'model_tag': 'test', 'model_digest': 'digest', 'vision': False,
+                 'thinking_mode': 'native'}
+        for raw in ('<think>Reasoning without final', '<think>Reasoning</think>'):
+            response.json.return_value = {'message': {'content': raw},
+                                          'eval_count': 512, 'done_reason': 'length'}
+            with patch.object(adapter, 'inspect', return_value=model), self.assertRaises(ModelError) as ctx:
+                adapter.chat(model, [{'role': 'user', 'content': 'question'}], PROTOCOL)
+            self.assertEqual(ctx.exception.status, 'empty_output')
+            self.assertEqual(ctx.exception.diagnostics['answer'], '')
+            self.assertEqual(ctx.exception.diagnostics['raw_answer'], raw)
+            self.assertEqual(ctx.exception.diagnostics['eval_count'], 512)
+            self.assertTrue(ctx.exception.diagnostics['output_truncated'])
+
     def test_leaderboard_render_does_not_reset_reviewed_metrics(self):
         from src.benchmark.local_cli import leaderboard_main
         with tempfile.TemporaryDirectory() as tmp:
