@@ -11,7 +11,9 @@ import numpy as np
 from src.benchmark.local_common import (read_rows, load_dev, fingerprint, write_json,
                                         canonical)
 
-EXCLUDED = {'evidence_unverified', 'not_applicable', 'context_ineligible', 'not_installed', 'resource_ineligible'}
+# A selected case blocked by runtime RAM/disk is a deployment failure, not a
+# reason to shrink the eligible denominator. Preflight-excluded models have no cases.
+EXCLUDED = {'evidence_unverified', 'not_applicable', 'context_ineligible', 'not_installed'}
 
 
 def citation_metrics(answer, pages):

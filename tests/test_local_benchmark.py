@@ -414,6 +414,20 @@ class LocalBenchmarkTests(unittest.TestCase):
         self.assertEqual(result['invalid_page_citations'], [2])
         self.assertNotIn('citation_supported', result)
 
+    def test_runtime_resource_failure_stays_in_deployment_denominator(self):
+        base = {'run_id': 'r', 'track': 'gold_text_verified', 'model_tag': 'm',
+                'model_digest': 'digest', 'category': 'math', 'evidence_sha256': 'e',
+                'latency_seconds': 1, 'answer': 'Fact'}
+        rows = [{**base, 'question_id': 'q1', 'status': 'completed'},
+                {**base, 'question_id': 'q2', 'status': 'resource_ineligible'}]
+        reviews = [{'review_id': review_id(rows[0]), 'correctness': 1,
+                    'reviewer': 'fixture', 'provenance': 'unit test'}]
+        metric = next(m for m in summarize(rows, reviews) if m['category'] == 'all')
+        self.assertEqual(metric['eligible_cases'], 2)
+        self.assertEqual(metric['technical_failure_count'], 1)
+        self.assertEqual(metric['correctness_all_eligible'], 0.5)
+        self.assertEqual(metric['excluded_statuses'], {})
+
     def test_reviewed_transcription_requires_source_and_corrected_hash(self):
         from src.benchmark.evidence_packets import build_packets
         q = {'question_id': 'q', 'paper_ids': ['p'], 'category': 'math', 'question': 'question',

@@ -13,7 +13,7 @@ Cập nhật: 13/11/2026. Đã có screening/rubric AI cho batch đầu 6 model;
 | 5. Scoring/report | Có auto metrics và blind review | Đã lưu60 receipt AI blind cho60 output completed của batch6; 12 empty_output tính là technical failures; chưa chọn winner |
 | 6–8. Screening/full dev/final test | Screening đang chạy | Batch6:72 case mới nhất,60 completed+12 empty_output; full120/frozen chưa chạy |
 
-Regression hiện tại: **59 tests PASS** (36 cũ + 23 benchmark), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
+Regression hiện tại: **60 tests PASS** (36 cũ + 24 benchmark), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
 
 ## Snapshot và phạm vi
 
@@ -174,3 +174,6 @@ Cập nhật 2026-11-13T16:23:47.972386+07:00: job retrieval15075 đã kết th�
 Đã lưu62 receipt final-content-only còn lại, kết hợp182 receipts cho16 model mới; scorer exit0. Toàn screening22 model:264case,242 completed đã cóAI rubric review,22empty_output; giữ6resource skips cũ trong lịch sử. Cùng12ID/prompt/protocol/packet, input hash từngID giống nhau. Tổng hợp tại data/benchmark/local_llm_runs/screening22_final_v2/: leaderboardCSV,summaryJSON,paired bootstrap CI thăm dò và reviewed_predictions.
 
 Đã khóa configs/benchmark/finalists.json gồm12model trước khi xem full dev outputs. Chọn theo category/latency/VRAM/role coverage và luôn giữQwen2B; không lấy điểm tổng12câu làm kết luận thắng. Qwen3hybrid/Granite/Qwen2.5 là ứng viên math; không gọi Phi reasoning specialist vì10/12thinking-only failures trong budget512. Báo cáo đầy đủ: LOCAL_LLM_SCREENING_REPORT.md. RAMavailable snapshot5,29GiB,VRAMfree5932MiB; đủ bắt đầu acceptance nhỏ rồi fullA/B tuần tự với guard. Human spot-check chưa có.
+
+
+Trước full dev 2026-11-13T16:34:42.748910+07:00: sửa scorer để resource_ineligible ở case đã chọn vẫn thuộc eligible/technical_failure và tính missed task, không làm mẫu số nhỏ đi. Candidate bị preflight loại không có case nên vẫn được tách khỏi leaderboard. Regression60testsPASS; screening latest không cònresource skip nên điểm quality shortlist giữ nguyên,6historical skips đã báo riêng. Shortlist đã commit49c504f; chuẩn bị baseline mới với scorer sửa này.
