@@ -1,0 +1,88 @@
+{
+  "version": "screening22_ai_final_content_v2",
+  "selected_at": "2026-11-13T16:29:56.562875+07:00",
+  "models": [
+    "qwen3.5:2b",
+    "gemma3:4b",
+    "qwen3.5:4b",
+    "ministral-3:3b",
+    "qwen3:1.7b",
+    "qwen2.5:1.5b",
+    "granite4:3b",
+    "qwen3:0.6b",
+    "qwen2.5:3b",
+    "qwen2.5-coder:3b",
+    "phi4-mini:3.8b",
+    "qwen3.5:0.8b"
+  ],
+  "selection_basis": "Exploratory quality per category,latency,VRAM and architecture/role coverage; no final winner.12 locked before full dev outputs.",
+  "screening_summary_sha256": "c79de177c9719ab17c0f102738c818d6a0debfe19abd29ada5e22c5538f7f10c",
+  "screening_question_manifest_sha256": "458b820f2f4a12ea801b44bc0eab891fdf96a8115c3130edb75338cf56d2e6d5",
+  "gold_full_packet_sha256": "5b211c812a637199ad5aeb0a82bf9dc31fa34de31619bf0cbca9c64b2eed8f3c",
+  "prompt_sha256": "36a4ef28b0c7977d3ccb32d3d90e87a553f8e2259af5e7e7fb56743468e22cb6",
+  "protocol_sha256": "6d04a4c6a06e159f317ec1b1cdf1437f891b38d82859f116576b210d220af534",
+  "review_type": "AI only; human spot-check outstanding",
+  "decisions": {
+    "qwen3.5:2b": {
+      "reason": "Mandatory existing application baseline,retained regardless screening score.",
+      "model_digest": "0689d44085e06d165161a8a9a1731344278cfb5aade63a3c3dbdb48ab54b130a",
+      "quantization": "Q8_0"
+    },
+    "gemma3:4b": {
+      "reason": "Highest exploratory overall; code coverage; VLM.",
+      "model_digest": "68ceab7e468a31c988b44d5a4984a0e21f58c4f7158c6ce29c1804babac38df7",
+      "quantization": "Q4_K_M"
+    },
+    "qwen3.5:4b": {
+      "reason": "Table/Negative coverage; VLM; retain RAM retry history.",
+      "model_digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+      "quantization": "Q4_K_M"
+    },
+    "ministral-3:3b": {
+      "reason": "Distinct general/VLM family and Negative coverage despite slower latency.",
+      "model_digest": "f04aa1c738f64e13c625b82ae92504fc0260fa6723b509ed1ece0fa188179b1d",
+      "quantization": "Q4_K_M"
+    },
+    "qwen3:1.7b": {
+      "reason": "Hybrid reasoning architecture; math/code candidate under common thinking policy.",
+      "model_digest": "8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7",
+      "quantization": "Q4_K_M"
+    },
+    "qwen2.5:1.5b": {
+      "reason": "Quality/latency lightweight candidate.",
+      "model_digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+      "quantization": "Q4_K_M"
+    },
+    "granite4:3b": {
+      "reason": "Distinct general family with math/table coverage.",
+      "model_digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+      "quantization": "Q4_K_M"
+    },
+    "qwen3:0.6b": {
+      "reason": "Fast low-resource candidate with code coverage.",
+      "model_digest": "7df6b6e09427a769808717c0a93cadc4ae99ed4eb8bf5ca557c90846becea435",
+      "quantization": "Q4_K_M"
+    },
+    "qwen2.5:3b": {
+      "reason": "Math/code candidate; compare scale within Qwen2.5 family.",
+      "model_digest": "357c53fb659c5076de1d65ccb0b397446227b71a42be9d1603d46168015c9e4b",
+      "quantization": "Q4_K_M"
+    },
+    "qwen2.5-coder:3b": {
+      "reason": "Explicit coder representative; math coverage and fast inference.",
+      "model_digest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225",
+      "quantization": "Q4_K_M"
+    },
+    "phi4-mini:3.8b": {
+      "reason": "Distinct compact Phi family/table coverage and fast stable finals.",
+      "model_digest": "78fad5d182a7c33065e153a5f8ba210754207ba9d91973f57dffa7f487363753",
+      "quantization": "Q4_K_M"
+    },
+    "qwen3.5:0.8b": {
+      "reason": "Low-VRAM VLM candidate for paired vision condition; no math strength claimed.",
+      "model_digest": "de63045f29755d4721c09d54c9b45c2dadb644f4fd7d604d4cac90d96049971c",
+      "quantization": "Q8_0"
+    }
+  },
+  "excluded_reasoning_note": "Phi4-mini-reasoning produced10/12 thinking-only failures under512-token main budget; DeepSeek1.5B failed smoke. Do not mislabel them math specialists or increase main budget per model."
+}

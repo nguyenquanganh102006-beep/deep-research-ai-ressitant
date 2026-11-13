@@ -1,6 +1,6 @@
 # Tiến độ benchmark local LLM
 
-Cập nhật: 13/11/2026. Đã có screening/rubric AI cho batch đầu 6 model; discovery nhóm A và review full dev đang tiếp tục. Chưa có finalist hoặc kết quả cuối.
+Cập nhật: 13/11/2026. Đã có screening/rubric AI cho batch đầu 6 model; discovery nhóm A và review full dev đang tiếp tục. Đã khóa shortlist12; chưa có kết quả full dev hoặc model thắng.
 
 ## Task và gate
 
@@ -164,3 +164,13 @@ Trong72 output còn lại phát hiện12 content bắt đầu bằng inline `<th
 Tạo analysis-only view `discovery32_20261113/screen12_final_content_v2/` bằng `scripts/normalize_benchmark_answers.py`:192 records gồm182 completed+10 empty_output. Source predictions/manifest giữ nguyên và hash được dẫn trong manifest mới; analysis-only view không được resume inference.120 receipt đã chấm vẫn khớp vì không thuộc12 output inline; còn62 final answers cần review. Template remaining72 raw là bản superseded, không dùng để chấm. Batch đầu6 model không có inline think nên điểm trước giữ nguyên. Trên toàn screening22 model:264 unique cases,242 final completed+22 empty_output; giữ thêm6 resource skips cũ của4B trong raw history.
 
 Regression59 tests PASS sau sửa, gồm không chấm citation trong reasoning, reasoning-only tính failure/giữ usage, analysis view giữ nguyên source và failure denominator, chặn resume analysis. Mock runner tests dùng runtime lock riêng để không tranh lock job thật. Logs `regression_final_content_v2_complete.log`; diff-check đạt. Job retrieval15075 vẫn đang chạy trên CPU, inference đã dừng đúng lock; chưa full120 inference/frozen.
+
+
+Cập nhật 2026-11-13T16:23:47.972386+07:00: job retrieval15075 đã kết thúc exit0; khóa120 TrackB text và120 packet ảnh TrackC. Validation retrieval120_validation.json xác nhận ID/hash/content/order và ảnh chỉ từ trangretrieval,120text fit context. Chưa xác lập image-token eligibility hoặc chạy inferencevision. Baseline code sửa inline thinking đã commitlocal e80f9b1;59testsPASS; chưa push.
+
+
+## Screening chấm đủ và khóa shortlist12 — 2026-11-13T16:32:39.822242+07:00
+
+Đã lưu62 receipt final-content-only còn lại, kết hợp182 receipts cho16 model mới; scorer exit0. Toàn screening22 model:264case,242 completed đã cóAI rubric review,22empty_output; giữ6resource skips cũ trong lịch sử. Cùng12ID/prompt/protocol/packet, input hash từngID giống nhau. Tổng hợp tại data/benchmark/local_llm_runs/screening22_final_v2/: leaderboardCSV,summaryJSON,paired bootstrap CI thăm dò và reviewed_predictions.
+
+Đã khóa configs/benchmark/finalists.json gồm12model trước khi xem full dev outputs. Chọn theo category/latency/VRAM/role coverage và luôn giữQwen2B; không lấy điểm tổng12câu làm kết luận thắng. Qwen3hybrid/Granite/Qwen2.5 là ứng viên math; không gọi Phi reasoning specialist vì10/12thinking-only failures trong budget512. Báo cáo đầy đủ: LOCAL_LLM_SCREENING_REPORT.md. RAMavailable snapshot5,29GiB,VRAMfree5932MiB; đủ bắt đầu acceptance nhỏ rồi fullA/B tuần tự với guard. Human spot-check chưa có.
