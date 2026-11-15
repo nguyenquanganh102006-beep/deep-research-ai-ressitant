@@ -17,8 +17,15 @@ EXCLUDED = {'evidence_unverified', 'not_applicable', 'context_ineligible', 'not_
 
 
 def citation_metrics(answer, pages):
-    citations = sorted(set(map(int, re.findall(r'\[(?:Trang|Page)\s+(\d+)\]', answer, re.I))))
-    return {'citations': citations, 'citation_presence': bool(citations),
+    citations = set()
+    for match in re.finditer(r'\[(?:Trang|Page)\s+(\d+)(?:\s*[-–—]\s*(\d+))?\]', answer, re.I):
+        start = int(match.group(1))
+        end = int(match.group(2)) if match.group(2) else start
+        citations.update(range(min(start, end), max(start, end) + 1))
+    citations = sorted(citations)
+    placeholder = bool(re.search(r'\[(?:Trang|Page)\s*N\]', answer, re.I))
+    return {'citations': citations, 'citation_presence': bool(citations) or placeholder,
+            'unresolved_citation_placeholder': placeholder,
             'invalid_page_citations': sorted(set(citations) - set(pages))}
 
 
@@ -26,14 +33,32 @@ def review_id(row):
     return fingerprint({k: row.get(k) for k in ('run_id', 'track', 'question_id', 'model_digest', 'answer', 'evidence_sha256')})
 
 
+def _boolean_rate(receipts: list[dict], field: str):
+    values = [r.get(field) for r in receipts if isinstance(r.get(field), bool)]
+    return (sum(values) / len(values) if values else None), len(values)
+
+
 def summarize(rows: list[dict], reviews: list[dict] = ()):
     receipts = {}
     for r in reviews:
         if r['review_id'] in receipts:
             raise ValueError('Duplicate review receipt')
-        if (isinstance(r.get('correctness'), bool) or r.get('correctness') not in (0, 0.5, 1)
-                or not r.get('reviewer') or not r.get('provenance')):
+        correctness = r.get('correctness')
+        if (correctness is not None
+                and (isinstance(correctness, bool) or correctness not in (0, 0.5, 1))):
+            raise ValueError('Invalid correctness score')
+        if not r.get('reviewer') or not r.get('provenance'):
             raise ValueError('Invalid score or missing reviewer provenance')
+        for field in ('citation_supported', 'formula_fidelity', 'algorithm_reasoning',
+                      'numeric_protocol_accuracy', 'correct_abstention', 'false_refusal'):
+            if r.get(field) is not None and not isinstance(r.get(field), bool):
+                raise ValueError(f'Invalid boolean review field: {field}')
+        if r.get('claims') is not None and not isinstance(r.get('claims'), list):
+            raise ValueError('Review claims must be a list')
+        for claim in r.get('claims') or []:
+            if (not isinstance(claim, dict)
+                    or not any(claim.get('supported') is value for value in (True, False, None))):
+                raise ValueError('Invalid claim support label')
         receipts[r['review_id']] = r
     known = {review_id(r) for r in rows if r['status'] == 'completed'}
     if set(receipts) - known:
@@ -46,7 +71,8 @@ def summarize(rows: list[dict], reviews: list[dict] = ()):
     for (tag, track, category), group in groups.items():
         eligible = [r for r in group if r['status'] not in EXCLUDED]
         completed = [r for r in eligible if r['status'] == 'completed']
-        scored = [receipts[review_id(r)] for r in completed if review_id(r) in receipts]
+        review_receipts = [receipts[review_id(r)] for r in completed if review_id(r) in receipts]
+        scored = [r for r in review_receipts if r.get('correctness') is not None]
         missing = len(completed) - len(scored)
         latency = [r['latency_seconds'] for r in completed]
         throughput = [r['decode_tokens_per_second'] for r in completed if r.get('decode_tokens_per_second') is not None]
@@ -57,11 +83,14 @@ def summarize(rows: list[dict], reviews: list[dict] = ()):
                         'cases': len(group), 'eligible_cases': len(eligible), 'completed': len(completed),
                         'technical_failure_count': len(eligible) - len(completed),
                         'excluded_statuses': dict(Counter(r['status'] for r in group if r['status'] in EXCLUDED)),
-                        'reviewed_completed': len(scored), 'unreviewed_completed': missing,
+                        'reviewed_completed': len(scored), 'review_receipts_completed': len(review_receipts),
+                        'pending_correctness_completed': sum(r.get('correctness') is None for r in review_receipts),
+                        'unreviewed_completed': missing,
                         'correctness_reviewed_completed': float(np.mean([r['correctness'] for r in scored])) if scored else None,
                         'correctness_all_eligible': sum(r['correctness'] for r in scored) / len(eligible) if not missing and eligible else None,
                         'citation_presence_rate': float(np.mean([r.get('citation_presence', False) for r in completed])) if completed else None,
                         'invalid_page_citation_count': sum(bool(r.get('invalid_page_citations')) for r in completed),
+                        'unresolved_citation_placeholder_count': sum(bool(r.get('unresolved_citation_placeholder')) for r in completed),
                         'truncated_output_count': sum(bool(r.get('output_truncated')) for r in completed),
                         'placement_classes': sorted({
                             'gpu_only' if p.get('size') and p.get('size_vram', 0) / p['size'] >= 0.99 else 'cpu_offload_or_unknown'
@@ -70,6 +99,22 @@ def summarize(rows: list[dict], reviews: list[dict] = ()):
                         'latency_p95_seconds': float(np.percentile(latency, 95)) if latency else None})
         metrics[-1]['decode_tokens_per_second_p50'] = float(np.median(throughput)) if throughput else None
         metrics[-1]['model_size_vram_bytes_max'] = max((p.get('size_vram', 0) for r in completed for p in r.get('placement', [])), default=None)
+        for field in ('citation_supported', 'formula_fidelity', 'algorithm_reasoning',
+                      'numeric_protocol_accuracy', 'correct_abstention', 'false_refusal'):
+            rate, rated = _boolean_rate(review_receipts, field)
+            metrics[-1][f'{field}_rate'] = rate
+            metrics[-1][f'{field}_rated_count'] = rated
+        claims = [claim for receipt in review_receipts for claim in (receipt.get('claims') or [])]
+        labeled_claims = [claim for claim in claims if isinstance(claim.get('supported'), bool)]
+        unsupported = sum(claim['supported'] is False for claim in labeled_claims)
+        supported = sum(claim['supported'] is True for claim in labeled_claims)
+        metrics[-1]['substantive_claim_count'] = len(claims)
+        metrics[-1]['claim_support_labeled_count'] = len(labeled_claims)
+        metrics[-1]['supported_claim_count'] = supported
+        metrics[-1]['unsupported_claim_count'] = unsupported
+        metrics[-1]['claim_support_rate'] = supported / len(labeled_claims) if labeled_claims else None
+        metrics[-1]['unsupported_claim_rate'] = unsupported / len(labeled_claims) if labeled_claims else None
+        metrics[-1]['unsupported_claims_per_reviewed_answer'] = unsupported / len(review_receipts) if review_receipts else None
     return metrics
 
 
@@ -80,6 +125,8 @@ def score_run(run_dir: Path, review_path: Path | None = None):
     for row in history:
         latest[(row['model_digest'], row['question_id'])] = row
     rows = list(latest.values())
+    for row in rows:
+        row.update(citation_metrics(row.get('answer') or '', row.get('allowed_pages') or []))
     reviews = read_rows(review_path) if review_path else []
     metrics = summarize(rows, reviews)
     for m in metrics:
@@ -123,11 +170,10 @@ def export_metrics(metrics: list[dict], run_dir: Path):
         writer.writeheader()
         writer.writerows(metrics)
     text = ['# Local LLM run report', '',
-            'Correctness remains null until explicit rubric review. Citation format is a separate automatic diagnostic.', '',
-            '| Model | Track | Eligible | Completed | Technical failures | Reviewed | Citation presence |',
-            '|---|---|---:|---:|---:|---:|---:|']
+            'Rubric correctness and claim support come from explicit review receipts. Citation presence is separate from claim-level citation support. Unsupported-claim rate is a hallucination proxy, not an expert-gold label.', '',
+            '| Model | Track | Category | Eligible | Completed | Failures | Reviewed | Rubric mean | Citation presence | Citation support | Claim support | Unsupported claims / answer | Correct abstention | Latency p50 / p95 (s) |',
+            '|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     for m in metrics:
-        if m['category'] == 'all':
-            text.append(f"| {m['model_tag']} | {m['track']} | {m['eligible_cases']} | {m['completed']} | {m['technical_failure_count']} | {m['reviewed_completed']} | {m['citation_presence_rate']} |")
-    text += ['', 'No winner is selected automatically from unreviewed outputs. Full digest, protocol and hashes: manifest.json.']
+        text.append(f"| {m['model_tag']} | {m['track']} | {m['category']} | {m['eligible_cases']} | {m['completed']} | {m['technical_failure_count']} | {m['reviewed_completed']} | {m.get('correctness_all_eligible')} | {m.get('citation_presence_rate')} | {m.get('citation_supported_rate')} | {m.get('claim_support_rate')} | {m.get('unsupported_claims_per_reviewed_answer')} | {m.get('correct_abstention_rate')} | {m.get('latency_p50_seconds')} / {m.get('latency_p95_seconds')} |")
+    text += ['', 'Metrics with no applicable or non-null receipt values remain null; rated counts are in metrics.json. Technical failures remain in the eligible denominator. No winner is selected automatically. Full digest, protocol and hashes: manifest.json.']
     (run_dir / 'report.md').write_text('\n'.join(text) + '\n', encoding='utf-8')

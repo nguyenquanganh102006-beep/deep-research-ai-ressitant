@@ -1,17 +1,23 @@
 # Tiến độ benchmark local LLM
 
-Cập nhật: 13/11/2026. Đã có screening/rubric AI cho batch đầu 6 model; discovery nhóm A và review full dev đang tiếp tục. Đã khóa shortlist12; chưa có kết quả full dev hoặc model thắng.
+Cập nhật: 15/11/2026. Phase 0–5 đã có artifact; Phase 6 đang ở pretest freeze. **Chưa mở `curated_v1/test_frozen.jsonl` và chưa chạy final test.** Snapshot chi tiết cũ hơn bên dưới là nhật ký lịch sử; bảng này là trạng thái mới nhất.
 
 ## Task và gate
 
 | Task | Trạng thái | Bằng chứng |
 |---|---|---|
-| 1. Foundation | PASS integrity/API; snapshot tài nguyên có guard | Baseline sanity `44be0c4`; dev 120 câu/12 PDF, 133 evidence khớp sidecar SHA; Adam/Flash smoke từ commit mới đều exit 0 |
-| 2. Config/adapter | Có bản đầu | Registry 32 tag đều tồn tại; batch đầu 6 model smoke ready. Screening Qwen3 4B có 12 empty_output; discovery A còn lại đang chạy trong budget40GiB |
-| 3. Evidence | Có packet và gate review | 120 gold packets v5: 59 có receipt AI và fit context, 61 unverified; screen12 giữ nguyên hash, không đổi theo output |
-| 4. Runner | Smoke trước commit PASS | Acceptance tại `a772079`: Gold 4/4 và RAG 4/4 completed; mỗi track resume tạo 0 dòng mới. Bản bổ sung log retry được regression và smoke riêng sau commit |
-| 5. Scoring/report | Có auto metrics và blind review | Đã lưu60 receipt AI blind cho60 output completed của batch6; 12 empty_output tính là technical failures; chưa chọn winner |
-| 6–8. Screening/full dev/final test | Screening đang chạy | Batch6:72 case mới nhất,60 completed+12 empty_output; full120/frozen chưa chạy |
+| 1. Foundation và framework | PASS | 32 candidate có trạng thái; runner Track A/B/C, scoring, reports và regression hiện có. Cập nhật runner đã thêm đường test chỉ sau freeze. |
+| 2. Screen và full dev | PASS, AI-only review | 12-model shortlist; full Track A/B và paired comparisons theo cùng ID. Human/expert audit chưa có. |
+| 3. Phase 5 repeats/ablation | PASS cho repeat và vision ablation | 4 model lặp seed 42/43/44 trên Track A/B; Track C vision/text paired 98 câu. Q4/Q8 và context/thinking phụ không chạy. |
+| 4. Candidate | CHỐT TRƯỚC TEST | `qwen2.5:3b` Q4_K_M candidate; `qwen3.5:2b` Q8_0 baseline; hash, retrieval protocol, rubric và thresholds ở `docs/BENCHMARK_CANDIDATE_SELECTION.md` và `configs/benchmark/final_candidate_v1.json`. |
+| 5. Phase 6 frozen test | ĐANG CHUẨN BỊ | Protocol và guard code đã có; full regression suite **85/85 PASS**. Còn commit/push code+docs, ghi freeze commit, rồi mới hash/build/run 268 test. |
+
+### Pretest snapshot 2026-11-15
+
+- Protocol text-only Track B SHA-256 `9df24203808769302467709910d7e30522cac119cf7df83756a3c073d08dedb9`; prompt SHA `36a4ef28b0c7977d3ccb32d3d90e87a553f8e2259af5e7e7fb56743468e22cb6`; judge protocol v2 SHA `4aa5f3d910ecdf312b15d082f506f4e92a435f46df6a43fbe8f734db4ed9030a`.
+- Current resources: RAM available 4,85 GiB; GPU RTX 4050 Laptop, 5.345 MiB free VRAM; C: free 246 GiB; Ollama 0.40.16. Both selected models are installed; `ollama ps` was empty at snapshot.
+- No test questions, reference answers, or test labels have been opened. First permitted access is after the frozen candidate commit, via `scripts/capture_frozen_test_hash.py`.
+- Next: full regression suite; commit/push only code/config/docs/log (not `data/benchmark/`); create local freeze manifest bound to commit; capture test hash; build packets; run both models once; blind AI review and score.
 
 Regression hiện tại: **60 tests PASS** (36 cũ + 24 benchmark), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
 

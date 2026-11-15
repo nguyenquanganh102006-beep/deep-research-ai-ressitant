@@ -7,9 +7,9 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from src.benchmark.local_common import CONFIG, fingerprint, read_json, read_rows, canonical
+from src.benchmark.local_common import CONFIG, PROJECT_ROOT, fingerprint, file_hash, read_json, read_rows, canonical
 from src.benchmark.local_llm_adapter import OllamaAdapter, ModelError
-from src.benchmark.runner_local import run, messages_for
+from src.benchmark.runner_local import run, messages_for, _validate_test_freeze
 from src.benchmark.scoring_local import summarize, review_id, citation_metrics
 
 PROTOCOL = read_json(CONFIG / 'protocol_v1.json')
@@ -61,6 +61,151 @@ class LocalBenchmarkTests(unittest.TestCase):
         isolation = patch('src.benchmark.runner_local.RUNS', Path(runtime.name))
         isolation.start()
         self.addCleanup(isolation.stop)
+
+    def test_frozen_test_runner_requires_freeze_before_reading_packets(self):
+        from src.benchmark.runner_local import _run
+        with tempfile.TemporaryDirectory() as tmp, patch('src.benchmark.runner_local.read_rows') as read_packet_rows:
+            with self.assertRaisesRegex(ValueError, 'require --freeze-manifest'):
+                _run(Path(tmp) / 'missing.jsonl', ['candidate', 'baseline'], Path(tmp) / 'run',
+                     adapter=FakeAdapter(), protocol_path=CONFIG / 'final_test_protocol_v1.json')
+            read_packet_rows.assert_not_called()
+
+    def test_frozen_test_manifest_binds_candidate_protocol_and_packets(self):
+        candidate_path = CONFIG / 'final_candidate_v1.json'
+        protocol_path = CONFIG / 'final_test_protocol_v1.json'
+        candidate = read_json(candidate_path)
+        code_hashes = {path.relative_to(PROJECT_ROOT).as_posix(): file_hash(path) for path in
+                       sorted((PROJECT_ROOT / 'src/benchmark').glob('*.py'))}
+        with tempfile.TemporaryDirectory(dir=PROJECT_ROOT / 'tests') as tmp:
+            root = Path(tmp)
+            packets_path = root / 'packets.jsonl'
+            packets_path.write_bytes(b'test packet fixture without labels\n')
+            freeze_path = root / 'freeze.json'
+            freeze = {
+                'status': 'frozen_before_test', 'candidate_commit_sha': 'fixture-head',
+                'candidate_config_path': candidate_path.relative_to(PROJECT_ROOT).as_posix(),
+                'candidate_config_sha256': file_hash(candidate_path),
+                'protocol_path': protocol_path.relative_to(PROJECT_ROOT).as_posix(),
+                'protocol_sha256': file_hash(protocol_path),
+                'judge_protocol_path': candidate['judge_protocol_path'],
+                'judge_protocol_sha256': candidate['judge_protocol_sha256'],
+                'prompt_sha256': candidate['prompt_sha256'],
+                'track': 'retrieved_text_frozen', 'expected_test_question_count': 268,
+                'test_frozen_sha256': 'a' * 64, 'models': candidate['models'],
+                'thresholds': candidate['thresholds'], 'benchmark_code_sha256': code_hashes,
+                'phase6_code_sha256': candidate['phase6_code_sha256'],
+            }
+            freeze_path.write_text(json.dumps(freeze), encoding='utf-8')
+            manifest = {
+                'split': 'test', 'track': 'retrieved_text_frozen',
+                'freeze_manifest_sha256': file_hash(freeze_path),
+                'test_frozen_sha256': freeze['test_frozen_sha256'],
+                'protocol_sha256': freeze['protocol_sha256'],
+                'label_fields_excluded': True, 'packets': 268,
+                'question_ids': [f'q{i}' for i in range(268)],
+                'sha256': file_hash(packets_path),
+            }
+            packets_path.with_suffix('.manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+            verified, protocol, bound_manifest = _validate_test_freeze(
+                freeze_path, packets_path, protocol_path, head='fixture-head'
+            )
+            self.assertEqual(verified['status'], 'frozen_before_test')
+            self.assertEqual(protocol['split'], 'test')
+            self.assertEqual(bound_manifest['packets'], 268)
+
+    def test_frozen_test_scorer_enforces_gates_on_synthetic_packets(self):
+        import subprocess
+        from scripts.score_frozen_test import score
+
+        candidate_path = CONFIG / 'final_candidate_v1.json'
+        protocol_path = CONFIG / 'final_test_protocol_v1.json'
+        candidate = read_json(candidate_path)
+        code_hashes = {path.relative_to(PROJECT_ROOT).as_posix(): file_hash(path) for path in
+                       sorted((PROJECT_ROOT / 'src/benchmark').glob('*.py'))}
+        with tempfile.TemporaryDirectory(dir=PROJECT_ROOT / 'tests') as tmp:
+            root = Path(tmp)
+            run_dir = root / 'run'
+            run_dir.mkdir()
+            packets_path = root / 'packets.jsonl'
+            packets_path.write_bytes(b'synthetic packet payload\n')
+            qids = [f'q{i:03}' for i in range(268)]
+            freeze = {
+                'status': 'frozen_before_test',
+                'candidate_commit_sha': subprocess.check_output(
+                    ['git', 'rev-parse', 'HEAD'], cwd=PROJECT_ROOT, text=True
+                ).strip(),
+                'candidate_config_path': candidate_path.relative_to(PROJECT_ROOT).as_posix(),
+                'candidate_config_sha256': file_hash(candidate_path),
+                'protocol_path': candidate['protocol_path'],
+                'protocol_sha256': candidate['protocol_sha256'],
+                'judge_protocol_path': candidate['judge_protocol_path'],
+                'judge_protocol_sha256': candidate['judge_protocol_sha256'],
+                'prompt_sha256': candidate['prompt_sha256'],
+                'track': 'retrieved_text_frozen',
+                'expected_test_question_count': 268,
+                'test_frozen_sha256': 'b' * 64,
+                'models': candidate['models'],
+                'thresholds': candidate['thresholds'],
+                'benchmark_code_sha256': code_hashes,
+                'phase6_code_sha256': candidate['phase6_code_sha256'],
+            }
+            freeze_path = root / 'freeze.json'
+            freeze_path.write_text(json.dumps(freeze), encoding='utf-8')
+            packets_manifest = {
+                'freeze_manifest_sha256': file_hash(freeze_path),
+                'test_frozen_sha256': freeze['test_frozen_sha256'],
+                'packets': 268, 'question_ids': qids,
+            }
+            packets_path.with_suffix('.manifest.json').write_text(
+                json.dumps(packets_manifest), encoding='utf-8'
+            )
+            predictions, receipts = [], []
+            categories = ['math', 'code', 'table', 'unanswerable']
+            for model in candidate['models']:
+                for index, qid in enumerate(qids):
+                    row = {
+                        'run_id': 'synthetic', 'track': 'retrieved_text_frozen', 'split': 'test',
+                        'question_id': qid, 'category': categories[index % len(categories)],
+                        'model_tag': model['model_tag'], 'model_digest': model['model_digest'],
+                        'quantization': model['quantization'], 'status': 'completed',
+                        'answer': 'synthetic answer', 'correctness': None,
+                        'input_sha256': f'input-{qid}', 'packet_sha256': f'packet-{qid}',
+                        'evidence_sha256': f'evidence-{qid}', 'latency_seconds': 0.1,
+                    }
+                    predictions.append(row)
+                    receipts.append({
+                        'review_id': review_id(row), 'question_id': qid,
+                        'category': row['category'], 'correctness': 1 if model['role'] == 'candidate' else 0.5,
+                        'input_sha256': row['input_sha256'], 'packet_sha256': row['packet_sha256'],
+                        'evidence_sha256': row['evidence_sha256'],
+                        'judge_protocol_sha256': freeze['judge_protocol_sha256'],
+                        'reviewer': 'synthetic test fixture', 'provenance': 'unit test only',
+                    })
+            (run_dir / 'predictions.jsonl').write_text(
+                ''.join(json.dumps(row) + '\n' for row in predictions), encoding='utf-8'
+            )
+            (run_dir / 'manifest.json').write_text(json.dumps({
+                'git_sha': freeze['candidate_commit_sha'],
+                'protocol_sha256': freeze['protocol_sha256'],
+                'packets_sha256': file_hash(packets_path),
+                'track': 'retrieved_text_frozen', 'split': 'test',
+                'protocol': {'split': 'test'},
+                'freeze_manifest_sha256': file_hash(freeze_path),
+                'test_frozen_sha256': freeze['test_frozen_sha256'],
+                'prompt_sha256': freeze['prompt_sha256'],
+                'code_sha256': code_hashes,
+            }), encoding='utf-8')
+            review_path = run_dir / 'reviews.jsonl'
+            review_path.write_text(
+                ''.join(json.dumps(row) + '\n' for row in receipts), encoding='utf-8'
+            )
+            report = score(
+                run_dir, packets_path, freeze_path, review_path,
+                root / 'report.json', root / 'report.md'
+            )
+            self.assertTrue(report['candidate_passes_all_thresholds'])
+            self.assertEqual(report['candidate']['questions'], 268)
+            self.assertAlmostEqual(report['paired_candidate_minus_baseline_all_eligible']['delta'], 0.5)
 
     def test_normalized_view_preserves_source_and_failure_denominator(self):
         from scripts.normalize_benchmark_answers import normalize
@@ -220,6 +365,27 @@ class LocalBenchmarkTests(unittest.TestCase):
             self.assertEqual(len(adapter.calls), calls)
             self.assertEqual(len(read_rows(output / 'predictions.jsonl')), 120)
 
+    @patch('src.benchmark.runner_local.capture_resource_metrics', return_value={})
+    def test_protocol_override_is_pinned_and_changed_seed_blocks_resume(self, _):
+        from src.benchmark.local_common import file_hash
+        adapter = FakeAdapter()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / 'packets.jsonl'
+            source.write_bytes(canonical(packet()) + b'\n')
+            protocol = {**PROTOCOL, 'seed': 43}
+            protocol_path = root / 'protocol_seed43.json'
+            protocol_path.write_text(json.dumps(protocol), encoding='utf-8')
+            output = root / 'run'
+            rows = run(source, ['model'], output, adapter=adapter, protocol_path=protocol_path)
+            self.assertEqual(rows[0]['status'], 'completed')
+            manifest = read_json(output / 'manifest.json')
+            self.assertEqual(manifest['protocol']['seed'], 43)
+            self.assertEqual(manifest['protocol_sha256'], file_hash(protocol_path))
+            protocol_path.write_text(json.dumps({**PROTOCOL, 'seed': 44}), encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'Existing run or changed inputs/config/model/code'):
+                run(source, ['model'], output, adapter=adapter, protocol_path=protocol_path, resume=True)
+
     def test_verified_flag_without_receipt_is_rejected(self):
         source = packet()
         source['verification_receipt'] = None
@@ -311,6 +477,16 @@ class LocalBenchmarkTests(unittest.TestCase):
         with self.assertRaises(ModelError) as ctx:
             messages_for(p, 'system', PROTOCOL)
         self.assertEqual(ctx.exception.status, 'context_ineligible')
+
+    def test_vision_pair_keeps_text_prompt_identical_to_text_control(self):
+        text_packet = packet()
+        text_packet['track'] = 'retrieved_text_frozen'
+        text_messages, text_pages = messages_for(text_packet, 'same system prompt', PROTOCOL)
+        vision_packet = {**text_packet, 'track': 'retrieved_vision',
+                         'images': [{'page': 1, 'sha256': 'image-hash'}]}
+        vision_messages, vision_pages = messages_for(vision_packet, 'same system prompt', PROTOCOL)
+        self.assertEqual(vision_messages, text_messages)
+        self.assertEqual(vision_pages, text_pages)
 
     def test_adapter_errors_and_thinking_policy(self):
         session = Mock()
@@ -413,6 +589,52 @@ class LocalBenchmarkTests(unittest.TestCase):
         self.assertTrue(result['citation_presence'])
         self.assertEqual(result['invalid_page_citations'], [2])
         self.assertNotIn('citation_supported', result)
+
+    def test_page_ranges_and_unresolved_placeholders_are_detected(self):
+        ranged = citation_metrics('Claim [Trang 3-5], then [Page 8-8].', [3, 4, 5, 8])
+        self.assertEqual(ranged['citations'], [3, 4, 5, 8])
+        self.assertTrue(ranged['citation_presence'])
+        self.assertFalse(ranged['unresolved_citation_placeholder'])
+        placeholder = citation_metrics('Unsupported claim [Trang N].', [1])
+        self.assertTrue(placeholder['citation_presence'])
+        self.assertTrue(placeholder['unresolved_citation_placeholder'])
+        self.assertEqual(placeholder['citations'], [])
+
+    def test_scoring_aggregates_review_support_abstention_and_claims(self):
+        row = {'run_id': 'r', 'track': 'gold_text_verified', 'model_tag': 'm',
+               'model_digest': 'digest', 'category': 'unanswerable', 'evidence_sha256': 'e',
+               'latency_seconds': 1, 'answer': 'I cannot determine this from the excerpt.',
+               'question_id': 'q1', 'status': 'completed'}
+        receipt = {'review_id': review_id(row), 'correctness': 1, 'citation_supported': False,
+                   'correct_abstention': True, 'false_refusal': False,
+                   'reviewer': 'fixture', 'provenance': 'AI unit fixture',
+                   'claims': [{'text': 'The excerpt omits the requested fact.', 'supported': True},
+                              {'text': 'The paper contains no such result.', 'supported': False},
+                              {'text': 'An unlabeled claim.', 'supported': None}]}
+        metric = next(m for m in summarize([row], [receipt]) if m['category'] == 'all')
+        self.assertEqual(metric['citation_supported_rate'], 0)
+        self.assertEqual(metric['citation_supported_rated_count'], 1)
+        self.assertEqual(metric['correct_abstention_rate'], 1)
+        self.assertEqual(metric['false_refusal_rate'], 0)
+        self.assertEqual(metric['claim_support_labeled_count'], 2)
+        self.assertEqual(metric['claim_support_rate'], 0.5)
+        self.assertEqual(metric['unsupported_claim_count'], 1)
+        self.assertEqual(metric['unsupported_claims_per_reviewed_answer'], 1)
+
+    def test_null_correctness_receipt_stays_pending_not_zero(self):
+        row = {'run_id': 'r', 'track': 'retrieved_text_frozen', 'model_tag': 'm',
+               'model_digest': 'digest', 'category': 'math', 'evidence_sha256': 'e',
+               'latency_seconds': 1, 'answer': 'Partial answer.', 'question_id': 'q1',
+               'status': 'completed'}
+        receipt = {'review_id': review_id(row), 'correctness': None, 'citation_supported': True,
+                   'reviewer': 'fixture', 'provenance': 'pending label conflict'}
+        metric = next(m for m in summarize([row], [receipt]) if m['category'] == 'all')
+        self.assertEqual(metric['review_receipts_completed'], 1)
+        self.assertEqual(metric['pending_correctness_completed'], 1)
+        self.assertEqual(metric['unreviewed_completed'], 1)
+        self.assertIsNone(metric['correctness_reviewed_completed'])
+        self.assertIsNone(metric['correctness_all_eligible'])
+        self.assertEqual(metric['citation_supported_rate'], 1)
 
     def test_runtime_resource_failure_stays_in_deployment_denominator(self):
         base = {'run_id': 'r', 'track': 'gold_text_verified', 'model_tag': 'm',

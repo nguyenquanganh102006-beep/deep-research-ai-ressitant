@@ -45,8 +45,7 @@ def messages_for(packet: dict, prompt: str, protocol: dict) -> tuple[list, list[
         pages.update(range(e['page_start'], e['page_end'] + 1))
     image_pages = [i['page'] for i in packet.get('images', [])]
     pages.update(image_pages)
-    image_note = '\nImage page order: ' + ', '.join(map(str, image_pages)) if image_pages else ''
-    user = 'QUESTION\n' + packet['question'] + '\n\nEVIDENCE\n' + '\n\n'.join(sections) + image_note
+    user = 'QUESTION\n' + packet['question'] + '\n\nEVIDENCE\n' + '\n\n'.join(sections)
     messages = [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': user}]
     size = sum(len(m['content'].encode('utf-8')) for m in messages)
     # Conservative byte budget; retain actual prompt_eval_count too. No per-model trimming.
@@ -60,17 +59,98 @@ def run(*args, **kwargs):
         return _run(*args, **kwargs)
 
 
+def _validate_test_freeze(freeze_path: Path, packets_path: Path, protocol_path: Path,
+                          *, head: str | None = None):
+    """Validate the committed test freeze without opening the sealed QA file."""
+    freeze_path = freeze_path.resolve()
+    packets_path = packets_path.resolve()
+    protocol_path = protocol_path.resolve()
+    freeze = read_json(freeze_path)
+    head = head or subprocess.check_output(
+        ['git', 'rev-parse', 'HEAD'], cwd=PROJECT_ROOT, text=True
+    ).strip()
+    protocol_rel = protocol_path.relative_to(PROJECT_ROOT).as_posix()
+    if freeze.get('status') != 'frozen_before_test' or freeze.get('candidate_commit_sha') != head:
+        raise ValueError('Current HEAD does not match the pretest freeze commit')
+    if freeze.get('protocol_path') != protocol_rel or freeze.get('protocol_sha256') != file_hash(protocol_path):
+        raise ValueError('Test protocol path/hash differs from the pretest freeze')
+    candidate_config = PROJECT_ROOT / freeze.get('candidate_config_path', '')
+    if (not freeze.get('candidate_config_sha256')
+            or file_hash(candidate_config) != freeze.get('candidate_config_sha256')):
+        raise ValueError('Candidate selection config differs from the pretest freeze')
+    candidate_doc = read_json(candidate_config)
+    if (candidate_doc.get('models') != freeze.get('models')
+            or candidate_doc.get('thresholds') != freeze.get('thresholds')
+            or candidate_doc.get('benchmark_code_sha256') != freeze.get('benchmark_code_sha256')
+            or candidate_doc.get('phase6_code_sha256') != freeze.get('phase6_code_sha256')
+            or candidate_doc.get('protocol_path') != protocol_rel
+            or candidate_doc.get('protocol_sha256') != freeze.get('protocol_sha256')):
+        raise ValueError('Frozen models, thresholds, or code differ from the committed candidate selection')
+    phase6_code = {rel: file_hash(PROJECT_ROOT / rel) for rel in candidate_doc.get('phase6_code_sha256', {})}
+    if not phase6_code or phase6_code != freeze.get('phase6_code_sha256'):
+        raise ValueError('Final test preparation/scoring code differs from the pretest freeze')
+    if (freeze.get('prompt_sha256') != file_hash(CONFIG / 'prompt_v1.txt')
+            or candidate_doc.get('prompt_sha256') != freeze.get('prompt_sha256')
+            or freeze.get('judge_protocol_sha256') is None
+            or candidate_doc.get('judge_protocol_sha256') != freeze.get('judge_protocol_sha256')):
+        raise ValueError('Prompt or judge protocol identity is missing/stale')
+    judge_protocol_path = PROJECT_ROOT / freeze.get('judge_protocol_path', '')
+    if file_hash(judge_protocol_path) != freeze.get('judge_protocol_sha256'):
+        raise ValueError('Judge protocol differs from the pretest freeze')
+    if (freeze.get('track') != 'retrieved_text_frozen'
+            or freeze.get('expected_test_question_count') != 268
+            or not freeze.get('test_frozen_sha256')):
+        raise ValueError('Pretest freeze must specify Track B and exactly 268 test questions')
+    protocol = read_json(protocol_path)
+    if protocol.get('split') != 'test':
+        raise ValueError('A frozen test run requires protocol split=test')
+
+    packet_manifest = read_json(packets_path.with_suffix('.manifest.json'))
+    if (packet_manifest.get('split') != 'test'
+            or packet_manifest.get('track') != 'retrieved_text_frozen'
+            or packet_manifest.get('freeze_manifest_sha256') != file_hash(freeze_path)
+            or packet_manifest.get('test_frozen_sha256') != freeze.get('test_frozen_sha256')
+            or packet_manifest.get('protocol_sha256') != freeze.get('protocol_sha256')
+            or packet_manifest.get('label_fields_excluded') is not True
+            or packet_manifest.get('packets') != 268
+            or packet_manifest.get('sha256') != file_hash(packets_path)):
+        raise ValueError('Final test packet manifest is not fully bound to the freeze')
+    qids = packet_manifest.get('question_ids')
+    if not isinstance(qids, list) or len(qids) != 268 or len(set(qids)) != 268:
+        raise ValueError('Final test packet manifest must list 268 unique question IDs')
+    models = freeze.get('models')
+    if (not isinstance(models, list) or len(models) != 2
+            or {model.get('role') for model in models} != {'candidate', 'baseline'}):
+        raise ValueError('Freeze must pin exactly one candidate and one baseline')
+    return freeze, protocol, packet_manifest
+
+
 def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
-        retry_failed=False, dry_run=False, adapter=None):
+        retry_failed=False, dry_run=False, adapter=None, protocol_path: Path | None = None,
+        test_freeze_path: Path | None = None):
     adapter = adapter or OllamaAdapter()
     if len(set(tags)) != len(tags):
         raise ValueError('Duplicate model tags')
+    protocol_path = (protocol_path or (CONFIG / 'protocol_v1.json')).resolve()
+    protocol = read_json(protocol_path)
+    test_freeze = None
+    if protocol.get('split') == 'test':
+        if test_freeze_path is None:
+            raise ValueError('Frozen test runs require --freeze-manifest')
+        test_freeze, protocol, _ = _validate_test_freeze(
+            test_freeze_path, packets_path, protocol_path
+        )
+    elif test_freeze_path is not None:
+        raise ValueError('A test freeze manifest cannot be used for a dev run')
     packets = read_rows(packets_path)
-    if not packets or any(p.get('split') != 'dev' for p in packets):
-        raise ValueError('Only nonempty dev packet files are supported')
+    split = protocol.get('split')
+    if split not in {'dev', 'test'} or not packets or any(p.get('split') != split for p in packets):
+        raise ValueError(f'Only nonempty {split!r} packet files are supported')
     tracks = {p['track'] for p in packets}
     if len(tracks) != 1 or not tracks <= {'gold_text_verified', 'retrieved_text_frozen', 'retrieved_vision'}:
         raise ValueError('One supported track per run is required')
+    if split == 'test' and tracks != {'retrieved_text_frozen'}:
+        raise ValueError('The frozen final run is limited to retrieved_text_frozen')
     if len({p['question_id'] for p in packets}) != len(packets):
         raise ValueError('Duplicate question IDs')
     for p in packets:
@@ -86,11 +166,19 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                     or receipt.get('source_evidence_sha256') != p.get('source_evidence_sha256')
                     or not all(receipt.get(k) for k in ('reviewer', 'method', 'reviewed_at', 'provenance'))):
                 raise ValueError('Missing/stale verification provenance')
-    protocol = read_json(CONFIG / 'protocol_v1.json')
     prompt = (CONFIG / 'prompt_v1.txt').read_text(encoding='utf-8')
     models = [adapter.inspect(tag) for tag in tags]
     if len({m['model_digest'] for m in models}) != len(models):
         raise ValueError('Model aliases resolve to the same digest')
+    if split == 'test':
+        frozen = {m['model_tag']: m for m in test_freeze['models']}
+        if set(frozen) != set(tags):
+            raise ValueError('Test model tags must exactly match the pretest candidate and baseline')
+        for model in models:
+            expected = frozen[model['model_tag']]
+            if (model['model_digest'] != expected['model_digest']
+                    or model['quantization'] != expected['quantization']):
+                raise ValueError(f"Model digest/quantization differs from freeze: {model['model_tag']}")
     try:
         gpu = subprocess.check_output(['nvidia-smi', '--query-gpu=name,driver_version,memory.total',
                                        '--format=csv,noheader'], text=True, timeout=10).strip()
@@ -100,12 +188,21 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                    'ollama': adapter.request('GET', '/api/version') if hasattr(adapter, 'request') else 'mock',
                    'packages': {p: importlib.metadata.version(p) for p in ('requests', 'numpy', 'ollama')}}
     prompt_hash = file_hash(CONFIG / 'prompt_v1.txt')
+    code_sha256 = {p.relative_to(PROJECT_ROOT).as_posix(): file_hash(p) for p in
+                   sorted((PROJECT_ROOT / 'src/benchmark').glob('*.py'))}
+    if test_freeze is not None and code_sha256 != test_freeze.get('benchmark_code_sha256'):
+        raise ValueError('Benchmark source code differs from the pretest freeze')
     lock = {'schema_version': 1, 'packets_sha256': file_hash(packets_path), 'environment': environment,
+            'protocol_path': str(protocol_path), 'protocol_sha256': file_hash(protocol_path),
             'protocol': protocol, 'prompt_sha256': prompt_hash,
+            'split': split, 'track': next(iter(tracks)),
             'models': models,
             'git_sha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=PROJECT_ROOT, text=True).strip(),
-            'code_sha256': {str(p.relative_to(PROJECT_ROOT)): file_hash(p) for p in
-                            sorted((PROJECT_ROOT / 'src/benchmark').glob('*.py'))}}
+            'code_sha256': code_sha256}
+    if test_freeze is not None:
+        lock.update(test_freeze_manifest_path=str(test_freeze_path.resolve()),
+                    freeze_manifest_sha256=file_hash(test_freeze_path),
+                    test_frozen_sha256=test_freeze['test_frozen_sha256'])
     lock_hash = fingerprint(lock)
     run_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = run_dir / 'manifest.json'
@@ -162,7 +259,7 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
             try:
                 for packet in pending:
                     case_started = time.perf_counter()
-                    row = {'run_id': run_dir.name, 'track': packet['track'], 'split': 'dev',
+                    row = {'run_id': run_dir.name, 'track': packet['track'], 'split': split,
                            'question_id': packet['question_id'], 'category': packet['category'],
                            'paper_ids': packet['paper_ids'], 'model_tag': tag, 'model_digest': digest,
                            'quantization': model['quantization'], 'thinking_mode': model['thinking_mode'],

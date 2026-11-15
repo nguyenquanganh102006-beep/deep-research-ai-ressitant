@@ -123,7 +123,7 @@ QASPER paragraph retrieval trên dev, theo báo cáo hiện có (902/1.005 câu 
 
 Đây là retrieval trên dev, không phải answer accuracy, page citation hay kết quả test. PDF QA chưa có benchmark toàn bộ; LitQA2 chưa có runner; SciCode chưa chạy harness. Smoke retrieval của Corpus C chỉ là kiểm tra vận hành, không phải QA benchmark. Vì vậy chưa có điểm tổng hợp cho toàn bộ nguồn.
 
-Tiến độ benchmark nhiều local LLM: [LOCAL_LLM_BENCHMARK_PROGRESS.md](docs/LOCAL_LLM_BENCHMARK_PROGRESS.md). [Screening 22 model và shortlist 12](docs/LOCAL_LLM_SCREENING_REPORT.md) đã có rubric AI; chưa phải kết quả full dev hoặc human audit.
+Phase 5 benchmark local LLM đã hoàn thành repeat seed 42/43/44 cho 4 model và paired vision-vs-text trên 98 câu; xem [tiến độ](docs/LOCAL_LLM_BENCHMARK_PROGRESS.md), [repeat seed](docs/PHASE5_REPEAT_SEED_COMPARISON.md) và [Track C](docs/TRACK_C_PAIRED_COMPARISON.md). Candidate trước test là `qwen2.5:3b` Q4_K_M, so với baseline `qwen3.5:2b` Q8_0; lựa chọn và ngưỡng ở [candidate report](docs/BENCHMARK_CANDIDATE_SELECTION.md). Điểm đều AI-reviewed, chưa phải human/expert gold. Frozen test 268 câu chưa mở/chạy; đang hoàn tất freeze commit.
 
 ## Giới hạn hiện tại
 

@@ -4,7 +4,7 @@
 **Ngày lập:** 12/11/2026  
 **Repo:** `nguyenquanganh102006-beep/deep-research-ai-ressitant`  
 **Định hướng:** Benchmark trước, phân tích lỗi, tối ưu có kiểm soát, rồi benchmark lại.  
-**Trạng thái:** PLAN / CHƯA THỰC THI. Các lệnh/scripts mới trong tài liệu này là **deliverable cần triển khai**, không phải file đã tồn tại.
+**Trạng thái:** ĐANG THỰC HIỆN — Phase 0–5 đã chạy theo các báo cáo tiến độ; Phase 6 đang chuẩn bị đóng băng candidate và chạy test held-out. Xem `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md` để biết trạng thái mới nhất; các checklist dưới đây được cập nhật theo bằng chứng thực thi.
 
 > **Mục tiêu cốt lõi:** Tìm được các LLM local phù hợp nhất cho QA trên paper khoa học, đặc biệt **Math, Code/Algorithm, Table/Result và Unanswerable**, dưới giới hạn **RTX 4050 Laptop 6 GB VRAM** (RAM khả dụng và dung lượng ổ phải đo lại). Chọn theo **độ đúng, độ tin cậy của bằng chứng, tốc độ và khả năng thực sự chạy local**, không chỉ số tham số.
 
@@ -229,39 +229,39 @@ Chỉ khởi động sau khi app hỗ trợ multi-paper thật sự. Corpus C ch
 
 ### Phase 0 — Khóa môi trường và baseline (P0)
 
-- [ ] Commit code sau sanity và regression tests (không commit dataset/model weights).
-- [ ] `git status --short` sạch cho file code/config cần benchmark; ghi commit SHA.
-- [ ] Chạy lại `python -m unittest discover -s tests -p 'test_*.py' -v`.
-- [ ] Chạy smoke E2E Adam và FlashAttention từ commit mới; kiểm tra output artifact, nguồn, không crash.
-- [ ] `pip freeze`, `ollama --version`, `ollama list`, `ollama show`, `nvidia-smi`, `ollama ps` → lưu snapshot.
-- [ ] Kiểm tra local `curated_v1/dev.jsonl` (120 câu), `papers.jsonl`, PDF paths/hash, evidence/rubric; không cần 268 test lúc này.
-- [ ] Chạy preflight: Ollama reachable; RAM/VRAM/disk đủ; GPU offload; license/model capability.
-- [ ] UI browser thật là gate sản phẩm riêng. **Batch benchmark headless** có thể bắt đầu nếu sanity/API đạt; nhưng vẫn ghi `browser_ui_unverified` cho hệ thống, chưa gọi toàn sản phẩm ready.
+- [x] Commit code sau sanity và regression tests (không commit dataset/model weights); baseline benchmark được commit riêng.
+- [x] `git status --short` sạch cho file code/config cần benchmark ở baseline; ghi commit SHA.
+- [x] Chạy `python -m unittest discover -s tests -p 'test_*.py' -v` và regression sau các thay đổi.
+- [x] Chạy smoke E2E Adam và FlashAttention; artifacts/nguồn và kết quả ghi trong `docs/PIPELINE_SANITY_REPORT.md`.
+- [x] Lưu `pip freeze`, Ollama, model, GPU/OS/RAM/disk snapshots ở artifacts local.
+- [x] Validate local dev 120 câu, papers/PDF path-hash và evidence/rubric; không mở test ở giai đoạn này.
+- [x] Preflight API, tài nguyên, GPU placement và model capability; policy tài nguyên ghi trong progress report.
+- [x] UI browser giữ là gate sản phẩm riêng; benchmark headless chạy với `browser_ui_unverified`, không gọi toàn sản phẩm ready.
 
 **PASS khi:** commit/hash môi trường được cố định, runner có thể đọc dev QA/PDF mà không thất bại hàng loạt. **FAIL:** mismatch hash hoặc missing dataset/model. **Không tự chữa bằng tải test frozen.**
 
 ### Phase 1 — Xây Benchmark Framework v1 (P0)
 
-- [ ] Tạo `models.yaml` hoặc `models.json` chứa 32 model, stage, vision, expected config, pull policy.
-- [ ] `model_adapter`: preflight Ollama, fetch digest/quantization/capability, response extraction `content`/`thinking`, retry rõ.
-- [ ] `evidence_builder`: hai nguồn `gold_text_verified` và `retrieved_text_frozen`, phân biệt page/quote provenance.
-- [ ] `prompt_templates`: một prompt QA có citation + abstention + đủ chỗ giải thích math/code.
-- [ ] `benchmark_runner`: hỗ trợ `--models`, `--track`, `--split dev`, `--limit`, `--resume`, `--retry-failed`, `--dry-run`.
-- [ ] `resource_monitor`: nvidia-smi trước/sau (và peak sampling nếu chạy được), RAM, `ollama ps`, duration/tokens.
-- [ ] `scorer`: chia automatic metrics và `review_required`; **không lấy citation format làm correctness**.
-- [ ] `report`: CSV/Parquet predictions, summary JSON, Markdown leaderboard, per-category breakdown, failure cases.
-- [ ] Unit tests dùng mock Ollama: missing model, output rỗng, timeout, OOM, unsupported think/images, resume không duplicate, scoring denominator chuẩn, không gold answer leakage.
+- [x] `configs/benchmark/models.json` khai báo 32 model, stage/capability và pull policy.
+- [x] Adapter có preflight Ollama, digest/quant/capability, `content`/`thinking` extraction và retry có ghi log.
+- [x] Evidence builder tách `gold_text_verified` và `retrieved_text_frozen`, giữ provenance/hash.
+- [x] Prompt QA chung có citation, abstention và đủ chỗ cho Math/Code.
+- [x] Runner hỗ trợ model/track/split, limit, resume/retry/dry-run; frozen test chỉ cho phép sau freeze manifest.
+- [x] Resource monitor ghi RAM/GPU/placement, latency/tokens và Ollama state.
+- [x] Scorer tách correctness khỏi citation syntax, giữ review-required và failure denominator.
+- [x] Xuất predictions/summary/CSV/Markdown và category/failure breakdown.
+- [x] Mock-based regression cho adapter failures, vision/think, resume, scoring denominator và leakage.
 
 **PASS khi:** `--dry-run` xác nhận một model × một câu hỏi có packet + digest; run 2 model × 2 câu lưu đủ output, run lại `--resume` không sinh trùng.
 
 ### Phase 2 — Model discovery / smoke test tất cả 32 model (P1)
 
-- [ ] Duyệt tag từ registry; pull **theo batch** ưu tiên nhóm A, nhóm B chỉ khi đủ disk.
-- [ ] Mỗi model chạy 1 câu text + 1 Math + 1 Code (không tính điểm model quality).
-- [ ] Kiểm tra model là `vision` hay `text-only`; kiểm tra cờ `think`, hỗ trợ hệ thống, citation format, không crash.
-- [ ] Ghi `model_status`: `ready`, `no_vision`, `model_not_found`, `unsupported_protocol`, `resource_ineligible`, `timeout`, `runtime_error`.
-- [ ] Kiểm tra `ollama ps`: `processor`, `size_vram`; ghi so với VRAM thực; unload trước khi sang model khác.
-- [ ] Không cố chạy model lớn đến mức khiến Windows swap/OOM kéo dài; skip theo policy tài nguyên.
+- [x] Duyệt 32 registry tags và pull tuần tự theo budget ổ đĩa.
+- [x] Smoke text/Math/Code cho ứng viên khả dụng; output rỗng/crash được giữ thành trạng thái lỗi.
+- [x] Kiểm tra capability vision/thinking, protocol và placement.
+- [x] Ghi preflight status cho đủ 32 model; nhóm không cài/chạy được giữ lý do.
+- [x] Ghi processor/VRAM và unload trước model tiếp theo.
+- [x] Áp dụng disk/RAM policy, không ép tải/chạy nhóm vượt budget.
 
 **PASS khi:** tất cả **32 model có trạng thái preflight rõ ràng**; các model `ready` có ít nhất một câu trả lời lưu thành công. **Không bắt buộc tất cả 32 chạy được.**
 
@@ -269,36 +269,36 @@ Chỉ khởi động sau khi app hỗ trợ multi-paper thật sự. Corpus C ch
 
 Chọn **12 câu cố định** từ 120 dev: 3 Math, 3 Code, 3 Table, 3 Negative; trải đều độ khó, ngôn ngữ, paper; **công bố manifest ID/hash trước khi chạy** để tránh chọn câu có lợi cho model nào.
 
-- [ ] Chạy Track A `gold_text_verified` text-only cho tất cả ứng viên `ready`.
-- [ ] Không dồn hết PDF/context vào 4K; skip câu `evidence_unverified` khỏi primary analysis hoặc review evidence trước.
-- [ ] Tự động thu latency, output, citation syntax, empty/refusal/missing, run status.
-- [ ] Chấm thử bằng rubric trên 12 câu; quan sát qua từng category; giữ tất cả raw predictions.
-- [ ] Chọn **8–12 model finalist**, tối thiểu đại diện: general, math/reasoning, coder, vision, tốc độ nhẹ; giữ baseline Qwen 2B kể cả khi xếp thấp.
-- [ ] Không chọn chỉ dựa vào điểm tổng 12 câu: dùng Pareto quality/latency, tính ổn định và category coverage.
+- [x] Chạy Track A `gold_text_verified` text-only trên screen12 cho model ready.
+- [x] Giữ evidence verification/context gate; `evidence_unverified` không lẫn vào điểm chính.
+- [x] Thu latency, output, citation syntax, empty/refusal và status.
+- [x] Chấm screen bằng rubric AI blind và giữ raw predictions/receipts.
+- [x] Chọn 12 finalist từ registry, giữ baseline Qwen 2B trong shortlist.
+- [x] Chọn shortlist theo category, quality/latency và nguồn lặp, không chỉ theo một điểm screen.
 
 **Dự kiến workload tối đa:** 32 × 12 = **384 outputs** nếu tất cả đều chạy được, không phải 32 × 120 ngay vòng đầu.
 
 ### Phase 4 — Benchmark chính trên toàn bộ 120 dev (P1)
 
-- [ ] Chạy Track A **cho 8–12 finalist**; mỗi case chuẩn hóa evidence; tuyệt đối không cho model thấy đáp án/rubric.
-- [ ] Chạy Track B fixed-retrieval **cho cùng finalist**; precompute + freeze evidence một lần.
-- [ ] Với top VLM, chạy Track C trên *subset có ảnh liên quan* sau khi chốt eligibility và chính sách ảnh.
-- [ ] Chấm correctness theo rubric (xem Section 6); đầu tiên AI-assisted với prompt judge versioned, rồi human spot check; **AI judge không được coi là gold**.
-- [ ] Ghi per-category accuracy, abstention, citation support, hallucination, throughput, VRAM, failure rate; đưa khoảng tin cậy nếu có ý nghĩa.
-- [ ] Phân tích paired differences theo question ID để không bị khác mẫu số.
+- [x] Chạy Track A cho finalist với evidence đã chuẩn hóa; không đưa đáp án/rubric vào model input.
+- [x] Chạy Track B fixed retrieval với cùng packet cho finalist.
+- [x] Chạy Track C trên subset đủ điều kiện, cùng VLM và cùng text control.
+- [x] Chấm blind bằng rubric versioned với AI agents theo yêu cầu người dùng; **không có human/expert spot check, nên kết quả vẫn AI-only và không phải gold độc lập**.
+- [x] Báo category accuracy, abstention, citations, claim support, latency/VRAM/failures và confidence intervals.
+- [x] Phân tích paired differences trên cùng question IDs.
 
 **Dự kiến số lượng:** 8–12 × 120 = 960–1440 câu trả lời **mỗi track A hoặc B**, chưa tính Track C và reruns. Dùng checkpoint/resume bắt buộc.
 
 ### Phase 5 — Đối chứng ablation/quantization (P2)
 
-- [ ] Top 3–5 model: chạy 2–3 seed/repeats theo cùng config để ước lượng variability.
-- [ ] Nếu có lý do: text-only vs text+image **trong cùng VLM**, quantization Q4 vs Q8 **trong cùng architecture**.
-- [ ] Có thể thử `num_ctx=8192` hoặc `thinking=native/on`, nhưng **phải lập leaderboard phụ**, không trộn với main comparison.
-- [ ] Chọn model cho từng vai trò: `default_local`, `math_specialist`, `code_specialist`, `vision_fallback`, `fast_low_resource` nếu thật sự có lợi.
+- [x] Top 3–5 model: chạy 2–3 seed/repeats theo cùng config để ước lượng variability. Bốn model có seed 42/43/44 cho cả Track A/B; seed 43/44 là cùng code/input. Seed 42 có code-hash caveat được audit trong report.
+- [x] Text-only vs text+image trong cùng VLM: paired Track C trên 98 câu, cùng model/input/evidence, một ảnh trang retrieval ở 96 DPI; kết quả và giới hạn ở `docs/TRACK_C_PAIRED_COMPARISON.md`.
+- [ ] Q4-vs-Q8, `num_ctx=8192` và thinking native/on không chạy vì không cần thiết cho lựa chọn Track B trong vòng này; nếu làm sau, lập leaderboard phụ riêng.
+- [x] Chọn vai trò trước test: `default_local=qwen2.5:3b`; giữ `qwen3.5:2b` làm baseline. Không chọn math/code specialist hoặc vision fallback cho candidate chính do chưa có lợi ích đủ chắc cho nhánh triển khai này.
 
 ### Phase 6 — Freeze candidate, test cuối (P3)
 
-- [ ] Chốt: commit, prompt hash, model digest/quant, retrieval config, hardware, scoring rubric và thresholds **trước** khi xem test frozen.
+- [ ] Chốt: commit, prompt hash, model digest/quant, retrieval config, hardware, scoring rubric và thresholds **trước** khi xem test frozen. Candidate và thresholds đã mô tả ở `docs/BENCHMARK_CANDIDATE_SELECTION.md`; còn commit/freeze manifest và test hash.
 - [ ] Chạy **một lần đánh giá cuối trên test frozen 268 câu** cho cấu hình đã chọn và baseline, không dùng để tuning.
 - [ ] Nếu sau đó cần sửa, phát hành protocol/model version mới; không tái sử dụng điểm held-out như dev.
 - [ ] Xuất report final với phân biệt AI-reviewed gold và human audit; nêu rõ giới hạn khoa học.

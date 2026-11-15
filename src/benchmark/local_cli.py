@@ -143,8 +143,10 @@ def packets_main():
 
 def runner_main():
     p = argparse.ArgumentParser()
-    p.add_argument('--split', choices=['dev'], default='dev')
+    p.add_argument('--split', choices=['dev', 'test'], default='dev')
     p.add_argument('--packets', type=Path)
+    p.add_argument('--protocol', type=Path, default=CONFIG / 'protocol_v1.json')
+    p.add_argument('--freeze-manifest', type=Path)
     p.add_argument('--track', choices=['gold_text_verified', 'retrieved_text_frozen', 'retrieved_vision'])
     model_group = p.add_mutually_exclusive_group(required=True)
     model_group.add_argument('--models', nargs='+')
@@ -157,11 +159,27 @@ def runner_main():
     p.add_argument('--retry-failed', action='store_true')
     p.add_argument('--dry-run', action='store_true')
     args = p.parse_args()
+    if args.split == 'test':
+        if args.freeze_manifest is None:
+            p.error('Frozen test runs require --freeze-manifest')
+        if args.track != 'retrieved_text_frozen':
+            p.error('Frozen final evaluation requires --track retrieved_text_frozen')
+        if args.model_set or args.sample_manifest or args.limit is not None:
+            p.error('Frozen test runs require explicit models and all 268 packets')
+    elif args.freeze_manifest is not None:
+        p.error('--freeze-manifest is only valid with --split test')
     if not args.packets:
+        if args.split != 'dev':
+            p.error('Frozen test runs require explicit prebuilt packets')
         if not args.track:
             p.error('--packets or --track is required')
         args.packets = PROJECT_ROOT / f'data/benchmark/local_llm_packets/{args.track}_v1.jsonl'
     packets = read_rows(args.packets)
+    protocol = read_json(args.protocol)
+    if protocol.get('split') != args.split:
+        raise ValueError(f'Protocol split {protocol.get("split")} does not match --split {args.split}')
+    if any(packet.get('split') != args.split for packet in packets):
+        raise ValueError('Packet split does not match --split')
     if args.track and any(packet['track'] != args.track for packet in packets):
         raise ValueError('Track does not match frozen packet input')
     if args.model_set == 'all-ready':
@@ -190,7 +208,8 @@ def runner_main():
         args.packets = selected
     from src.benchmark.runner_local import run
     print({'new_rows': len(run(args.packets, args.models, args.run_dir,
-                             resume=args.resume, retry_failed=args.retry_failed, dry_run=args.dry_run))})
+                             resume=args.resume, retry_failed=args.retry_failed, dry_run=args.dry_run,
+                             protocol_path=args.protocol, test_freeze_path=args.freeze_manifest))})
     return 0
 
 
