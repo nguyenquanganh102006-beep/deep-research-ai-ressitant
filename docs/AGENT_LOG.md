@@ -1319,3 +1319,11 @@ A summary command first failed to serialize a hashtable with a numeric key; rera
 - L?n th? tr??c: sau commit/freeze v1, capture x?c nh?n 268 d?ng v? test SHA-256 `ea5fa56c6af74ec77f50da7c3dbaa986f138fc08c02dc9bba195956fb410dc40`. Builder ??c test rows ?? l?y question/paper metadata r?i d?ng ? PDF 75 trang tr??c khi ghi packet; kh?ng inference/score, kh?ng in ho?c chuy?n answer labels cho model/reviewer. C? th? ?? sinh parsed caches trong `data/papers`; kh?ng x?a. Freeze v1 ???c gi? l?ch s? v? supersede.
 - L?i thao t?c ki?m tra: m?t s? l?nh in/??c diff qua encoding m?c ??nh CP1252 kh?ng hi?n th? Unicode, m?t script so s?nh Git diff c?ng decode nh?m; ch?y l?i b?ng UTF-8/ASCII-safe, kh?ng s?a nh?m n?i dung.
 - C?n l?i: commit/push code, config, docs, tests v? log nh?ng lo?i tr? `data/`; t?o freeze v2 sau commit cu?i, capture l?i test hash, d?ng ?? 268 packet, r?i ch?y m?t l?n candidate/baseline v? blind-review/scoring. Ch?a c? k?t qu? test model.
+
+
+## 2026-11-15 19:37:13 +07:00 ? Push benchmark-only page limit tr??c final freeze
+
+- Y?u c?u: ti?p t?c Phase 6; user ?? cho ph?p push ph?n repo ngo?i dataset.
+- Commit/push: `ecd8e3ef36c62a3471d75646b2398ea1289504c2` (`fix(benchmark): allow long papers in frozen test builder`) ?? push th?nh c?ng l?n `origin/main`. Candidate config, builder guard, tests, README, plan, ti?n ??, candidate report v? log ??u ?? commit; staging list x?c nh?n kh?ng c? `data/`.
+- Ki?m ch?ng tr??c commit: focused suite 43/43 PASS, full suite 86/86 PASS, `git diff --cached --check` s?ch; m?i source hash map trong config kh?p.
+- C?n l?i: t?o log-sync commit l?m candidate freeze SHA cu?i; t?o freeze manifest v2 local, capture l?i hash test v? d?ng packet. Ch?a inference/scoring.
