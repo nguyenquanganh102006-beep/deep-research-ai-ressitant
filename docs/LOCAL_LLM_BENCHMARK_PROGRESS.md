@@ -1,6 +1,6 @@
 # Tiến độ benchmark local LLM
 
-Cập nhật: 15/11/2026. Phase 0–5 có artifact; Phase 6 đã hoàn tất lượt frozen test duy nhất trên 268 câu cho mỗi model. `qwen2.5:3b` đạt 0,453, baseline `qwen3.5:2b` đạt 0,343; paired gain +0,110 (95% CI +0,062 đến +0,159). Gate tổng kết **FAIL** vì category Code của candidate là 0,311, thấp hơn ngưỡng 0,35. Cả hai lượt có 0 lỗi kỹ thuật. Review và adjudication đều AI-only, không phải human/expert gold. Không dùng 268 câu này để tuning; xem báo cáo chi tiết và log bên dưới.
+Cập nhật: 15/11/2026. Phase 0–5 có artifact; Phase 6 đã hoàn tất lượt frozen test duy nhất trên 268 câu cho mỗi model. `qwen2.5:3b` đạt 0,453, baseline `qwen3.5:2b` đạt 0,343; paired gain +0,110 (95% CI +0,062 đến +0,159). Gate tổng kết **FAIL** vì category Code của candidate là 0,311, thấp hơn ngưỡng 0,35. Cả hai lượt có 0 lỗi kỹ thuật. Review và adjudication đều AI-only, không phải human/expert gold. Không dùng 268 câu này để tuning. Phase 7 đã đăng ký trước ba ứng viên và một baseline để chạy lại dev 120; chưa chạy inference tại thời điểm đăng ký.
 
 ## Task và gate
 
@@ -11,6 +11,15 @@ Cập nhật: 15/11/2026. Phase 0–5 có artifact; Phase 6 đã hoàn tất lư
 | 3. Phase 5 repeats/ablation | PASS cho repeat và vision ablation | 4 model lặp seed 42/43/44 trên Track A/B; Track C vision/text paired 98 câu. Q4/Q8 và context/thinking phụ không chạy. |
 | 4. Candidate | CHỐT TRƯỚC TEST | `qwen2.5:3b` Q4_K_M candidate; `qwen3.5:2b` Q8_0 baseline; hash, retrieval protocol, rubric và thresholds ở `docs/BENCHMARK_CANDIDATE_SELECTION.md` và `configs/benchmark/final_candidate_v1.json`. |
 | 5. Phase 6 frozen test | HOÀN TẤT — GATE FAIL | Cả hai model 268/268 câu, 0 lỗi kỹ thuật. Candidate overall 0,453; Code 0,311 < 0,35. Paired gain +0,110 (95% CI +0,062 đến +0,159). Review AI-only; chi tiết tại [candidate report](BENCHMARK_CANDIDATE_SELECTION.md) và `data/benchmark/local_llm_runs/final_test_v1/`. |
+| 6. Phase 7 dev re-selection | ĐĂNG KÝ + DRY-RUN PASS — CHƯA INFERENCE | Ba ứng viên `gemma3:4b`, `qwen2.5:1.5b`, `qwen3.5:4b`; baseline `qwen3.5:2b`; cùng Track B dev120, seed45. Chi tiết/hashes ở `configs/benchmark/phase7_dev_candidate_selection_v1.json`. |
+
+### Phase 7 — đăng ký vòng dev mới
+
+- Preregister lúc `2026-11-15T23:55:00+07:00`; packet SHA-256 `da8127c42b4e4f79d9e04c2e14ea886f9ac1f6f38ce47ad7ee1c155e7b28af7d` (120 câu), prompt SHA-256 `36a4ef28b0c7977d3ccb32d3d90e87a553f8e2259af5e7e7fb56743468e22cb6`, protocol seed45 SHA-256 `d609062ee152fc067f445cb8e95db021d3591049917e4c85dbf0334d46fdddc8`.
+- Lý do screen: `gemma3:4b` mean 0,708; `qwen2.5:1.5b` mean 0,625, Code 0,667 và VRAM thấp; `qwen3.5:4b` mean 0,667, Table/Unanswerable 1,000. Screen chỉ dùng để chọn nhóm chạy dev, không kết luận model tốt nhất.
+- Snapshot trước chạy: 5,72 GiB RAM khả dụng, 5.932 MiB VRAM trống, Ollama không có model đang nạp. Các model đã có local và digest được đăng ký trong file candidate selection.
+- Dry-run exit 0, tạo đủ 120 request inputs; chưa nạp model hay tạo prediction. Output preview ở `data/benchmark/local_llm_runs/phase7_dev_seed45_track_b_20261115/`; inference sẽ ghi vào thư mục riêng để manifest bind Git SHA sau khi prereg được commit.
+- Còn lại: chạy inference tuần tự; tạo và kiểm tra blind AI reviews; chấm, paired analysis, cập nhật kết quả. Bộ 268 test vẫn đóng; final eval tiếp theo cần held-out mới.
 
 ### Lịch sử pretest và freeze 2026-11-15
 

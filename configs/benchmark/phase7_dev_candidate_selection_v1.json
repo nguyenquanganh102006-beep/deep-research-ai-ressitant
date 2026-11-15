@@ -1,0 +1,124 @@
+{
+  "schema_version": "phase7_dev_candidate_selection_v1",
+  "registered_at": "2026-11-15T23:55:00+07:00",
+  "phase": "Phase 7 ? reselect on dev after Phase 6 gate failure",
+  "split": "dev",
+  "track": "retrieved_text_frozen",
+  "packet_path": "data/benchmark/local_llm_packets/retrieved_text_dev120_frozen_v1.jsonl",
+  "packet_sha256": "da8127c42b4e4f79d9e04c2e14ea886f9ac1f6f38ce47ad7ee1c155e7b28af7d",
+  "packet_manifest_path": "data/benchmark/local_llm_packets/retrieved_text_dev120_frozen_v1.manifest.json",
+  "packet_manifest_sha256": "9e9b44a62c0a5752b509c1763baf2b4d1763df36575a119605ef638b7f0c974a",
+  "question_count": 120,
+  "protocol_path": "configs/benchmark/phase7_dev_protocol_seed45_v1.json",
+  "protocol_sha256": "d609062ee152fc067f445cb8e95db021d3591049917e4c85dbf0334d46fdddc8",
+  "protocol": {
+    "version": "local_llm_v1",
+    "split": "dev",
+    "num_ctx": 4096,
+    "num_predict": 512,
+    "temperature": 0,
+    "seed": 45,
+    "timeout_seconds": 180,
+    "retry": 1,
+    "max_input_utf8_bytes": 3000,
+    "template_token_reserve": 512,
+    "max_evidence_utf8_bytes": 1800,
+    "retrieval_top_k": 5,
+    "image_dpi": 96,
+    "max_images": 2,
+    "thinking_policy": "off_if_supported_else_native",
+    "warmup": true,
+    "keep_alive": "5m",
+    "minimum_free_disk_gb": 30,
+    "maximum_model_disk_gb": 40,
+    "browser_ui_unverified": true,
+    "minimum_ram_gb": 2,
+    "minimum_runtime_ram_gb": 0.5
+  },
+  "prompt_path": "configs/benchmark/prompt_v1.txt",
+  "prompt_sha256": "36a4ef28b0c7977d3ccb32d3d90e87a553f8e2259af5e7e7fb56743468e22cb6",
+  "screening_leaderboard_path": "data/benchmark/local_llm_runs/screening22_final_v2/leaderboard.csv",
+  "screening_leaderboard_sha256": "d759959d8301a89f05a4d6852bcea1aef1905beae11d51359f03fae6aaf70c79",
+  "run_dir": "data/benchmark/local_llm_runs/phase7_dev_seed45_track_b_20261115_inference",
+  "candidates": [
+    {
+      "tag": "gemma3:4b",
+      "model_digest": "68ceab7e468a31c988b44d5a4984a0e21f58c4f7158c6ce29c1804babac38df7",
+      "quantization": "Q4_K_M",
+      "parameter_size": "3.9B",
+      "size_bytes": 3350272403,
+      "screen12": {
+        "rubric_mean": 0.7083333333333334,
+        "strict_accuracy": 0.6666666666666666,
+        "math": 0.5,
+        "code": 1.0,
+        "table": 0.6666666666666666,
+        "unanswerable": 0.6666666666666666,
+        "p50_seconds": 2.78095,
+        "vram_gib_max": 2.706982420757413
+      },
+      "rationale": "Highest mean in the 22-model, 12-question screen (0.708); screening Code mean 1.000."
+    },
+    {
+      "tag": "qwen2.5:1.5b",
+      "model_digest": "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b",
+      "quantization": "Q4_K_M",
+      "parameter_size": "1.5B",
+      "size_bytes": 986061892,
+      "screen12": {
+        "rubric_mean": 0.625,
+        "strict_accuracy": 0.5,
+        "math": 0.3333333333333333,
+        "code": 0.6666666666666666,
+        "table": 0.6666666666666666,
+        "unanswerable": 0.8333333333333334,
+        "p50_seconds": 0.9294499999999999,
+        "vram_gib_max": 1.089062498882413
+      },
+      "rationale": "Small, fast complementary candidate; screen mean 0.625 and Code 0.667 with 1.089 GiB peak VRAM."
+    },
+    {
+      "tag": "qwen3.5:4b",
+      "model_digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+      "quantization": "Q4_K_M",
+      "parameter_size": "4.2B",
+      "size_bytes": 3324173934,
+      "screen12": {
+        "rubric_mean": 0.6666666666666666,
+        "strict_accuracy": 0.6666666666666666,
+        "math": 0.3333333333333333,
+        "code": 0.3333333333333333,
+        "table": 1.0,
+        "unanswerable": 1.0,
+        "p50_seconds": 4.2848,
+        "vram_gib_max": 2.9296972639858723
+      },
+      "rationale": "Category-diverse candidate; screen mean 0.667, Table 1.000 and Unanswerable 1.000; screen Math/Code are weak and must be checked on full dev."
+    }
+  ],
+  "reference_baseline": {
+    "tag": "qwen3.5:2b",
+    "model_digest": "0689d44085e06d165161a8a9a1731344278cfb5aade63a3c3dbdb48ab54b130a",
+    "quantization": "Q8_0",
+    "parameter_size": "1.9B",
+    "size_bytes": 2683396812,
+    "screen12": {
+      "rubric_mean": 0.3333333333333333,
+      "strict_accuracy": 0.3333333333333333,
+      "math": 0.3333333333333333,
+      "code": 0.3333333333333333,
+      "table": 0.6666666666666666,
+      "unanswerable": 0.0,
+      "p50_seconds": 4.70365,
+      "vram_gib_max": 2.205996091477573
+    },
+    "rationale": "Maintains the same local baseline used in the completed Phase 6 comparison."
+  },
+  "selection_guardrails": [
+    "Registered before any Phase 7 dev inference.",
+    "Use the same 120 frozen Track B packets, prompt, protocol settings and seed for every registered model.",
+    "The frozen 268-question final test remains closed and is excluded from selection and tuning.",
+    "Blind AI review follows the existing judge protocol; report AI-only review as non-human evidence."
+  ],
+  "dry_run_dir": "data/benchmark/local_llm_runs/phase7_dev_seed45_track_b_20261115"
+}

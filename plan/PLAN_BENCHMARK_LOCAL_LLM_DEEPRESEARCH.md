@@ -4,7 +4,7 @@
 **Ngày lập:** 12/11/2026  
 **Repo:** `nguyenquanganh102006-beep/deep-research-ai-ressitant`  
 **Định hướng:** Benchmark trước, phân tích lỗi, tối ưu có kiểm soát, rồi benchmark lại.  
-**Trạng thái:** Phase 6 đã hoàn tất lượt đánh giá frozen. Candidate `qwen2.5:3b` không đạt toàn bộ gate vì điểm Code 0,311 thấp hơn ngưỡng 0,35; paired gain so với baseline vẫn dương. Kết quả là AI-reviewed, chưa phải human/expert gold. Xem `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md` và `docs/BENCHMARK_CANDIDATE_SELECTION.md`.
+**Trạng thái:** Phase 6 đã hoàn tất lượt đánh giá frozen. Candidate `qwen2.5:3b` không đạt toàn bộ gate vì điểm Code 0,311 thấp hơn ngưỡng 0,35; paired gain so với baseline vẫn dương. Phase 7 đang mở vòng chọn lại candidate trên dev, không dùng lại test frozen. Kết quả hiện có là AI-reviewed, chưa phải human/expert gold. Xem `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md` và `docs/BENCHMARK_CANDIDATE_SELECTION.md`.
 
 > **Mục tiêu cốt lõi:** Tìm được các LLM local phù hợp nhất cho QA trên paper khoa học, đặc biệt **Math, Code/Algorithm, Table/Result và Unanswerable**, dưới giới hạn **RTX 4050 Laptop 6 GB VRAM** (RAM khả dụng và dung lượng ổ phải đo lại). Chọn theo **độ đúng, độ tin cậy của bằng chứng, tốc độ và khả năng thực sự chạy local**, không chỉ số tham số.
 
@@ -304,6 +304,15 @@ Chọn **12 câu cố định** từ 120 dev: 3 Math, 3 Code, 3 Table, 3 Negativ
 - [x] Ghi gate: overall, paired gain và paired CI đạt; category Code của candidate 0,311 < 0,35 nên **candidate FAIL toàn gate**. Các category khác: Math 0,428; Table 0,422; Unanswerable 0,704.
 - [x] Xuất report và review receipts: 536 receipts, 113 lượt cross-audit độc lập, 28 bất đồng correctness adjudicate; kết quả AI-only, chưa có human/expert audit. Chi tiết tại `docs/BENCHMARK_CANDIDATE_SELECTION.md` và artifact local `data/benchmark/local_llm_runs/final_test_v1/`.
 - [x] Giữ nguyên held-out: không tuning theo 268 câu. Mọi thay đổi tiếp theo cần version mới và một held-out split mới.
+
+### Phase 7 — Chọn lại candidate trên dev sau gate fail (P2)
+
+- [x] Đăng ký trước ba ứng viên và baseline trước inference tại `configs/benchmark/phase7_dev_candidate_selection_v1.json`; model digest, quantization, screen evidence, prompt, packet và protocol đều được ghi hash.
+- [x] Dry-run xác nhận tạo được đủ 120 input packet, không chạy inference; output để riêng tại `data/benchmark/local_llm_runs/phase7_dev_seed45_track_b_20261115/`.
+- [ ] Chạy cùng 120 packet Track B `retrieved_text_frozen`, cùng prompt và protocol seed 45 cho `gemma3:4b`, `qwen2.5:1.5b`, `qwen3.5:4b` và baseline `qwen3.5:2b`; chạy tuần tự, lưu checkpoint và provenance trong `data/benchmark/local_llm_runs/phase7_dev_seed45_track_b_20261115_inference/`.
+- [ ] Tạo blind review packets, dùng rubric/judge protocol đã khóa để chấm AI-only; kiểm tra đủ 120 review cho từng model, sau đó score từng nhóm và paired với baseline theo cùng question ID.
+- [ ] Báo cáo category Code cùng Math/Table/Unanswerable, failures, citation, latency và VRAM; quyết định model nào được đề cử tiếp theo chỉ dựa trên dev, không mở lại test 268 câu.
+- [ ] Nếu chọn được candidate, tạo một held-out split mới và freeze candidate/config trước khi thực hiện final evaluation. Không dùng lại 268 câu Phase 6 làm test chọn model.
 
 ---
 
