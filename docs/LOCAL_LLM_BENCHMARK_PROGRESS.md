@@ -1,6 +1,6 @@
 # Tiến độ benchmark local LLM
 
-Cập nhật: 15/11/2026. Phase 0–5 đã có artifact; Phase 6 đang chuẩn bị candidate/freeze v2 sau khi packet builder v1 vấp giới hạn PDF dài. Benchmark-only page override đã triển khai và qua regression tập trung 43/43 cùng full suite 86/86. Chưa chạy inference hoặc scoring. Snapshot chi tiết cũ hơn bên dưới là nhật ký lịch sử; bảng này là trạng thái mới nhất.
+Cập nhật: 15/11/2026. Phase 0–5 có artifact; Phase 6 đã hoàn tất lượt frozen test duy nhất trên 268 câu cho mỗi model. `qwen2.5:3b` đạt 0,453, baseline `qwen3.5:2b` đạt 0,343; paired gain +0,110 (95% CI +0,062 đến +0,159). Gate tổng kết **FAIL** vì category Code của candidate là 0,311, thấp hơn ngưỡng 0,35. Cả hai lượt có 0 lỗi kỹ thuật. Review và adjudication đều AI-only, không phải human/expert gold. Không dùng 268 câu này để tuning; xem báo cáo chi tiết và log bên dưới.
 
 ## Task và gate
 
@@ -10,16 +10,18 @@ Cập nhật: 15/11/2026. Phase 0–5 đã có artifact; Phase 6 đang chuẩn b
 | 2. Screen và full dev | PASS, AI-only review | 12-model shortlist; full Track A/B và paired comparisons theo cùng ID. Human/expert audit chưa có. |
 | 3. Phase 5 repeats/ablation | PASS cho repeat và vision ablation | 4 model lặp seed 42/43/44 trên Track A/B; Track C vision/text paired 98 câu. Q4/Q8 và context/thinking phụ không chạy. |
 | 4. Candidate | CHỐT TRƯỚC TEST | `qwen2.5:3b` Q4_K_M candidate; `qwen3.5:2b` Q8_0 baseline; hash, retrieval protocol, rubric và thresholds ở `docs/BENCHMARK_CANDIDATE_SELECTION.md` và `configs/benchmark/final_candidate_v1.json`. |
-| 5. Phase 6 frozen test | CHỜ COMMIT/FREEZE V2 | Freeze v1 (`caa1d64`) được giữ làm lịch sử nhưng đã lỗi thời sau khi packet builder dừng ở PDF 75 trang. Override tối đa 200 trang chỉ cho benchmark đã qua 43 focused tests và full suite 86/86; app mặc định vẫn 50. Chưa chạy inference/score; cần commit/push code/config/docs/log rồi tạo freeze v2. |
+| 5. Phase 6 frozen test | HOÀN TẤT — GATE FAIL | Cả hai model 268/268 câu, 0 lỗi kỹ thuật. Candidate overall 0,453; Code 0,311 < 0,35. Paired gain +0,110 (95% CI +0,062 đến +0,159). Review AI-only; chi tiết tại [candidate report](BENCHMARK_CANDIDATE_SELECTION.md) và `data/benchmark/local_llm_runs/final_test_v1/`. |
 
-### Pretest snapshot 2026-11-15
+### Lịch sử pretest và freeze 2026-11-15
 
 - Protocol text-only Track B SHA-256 `9df24203808769302467709910d7e30522cac119cf7df83756a3c073d08dedb9`; prompt SHA `36a4ef28b0c7977d3ccb32d3d90e87a553f8e2259af5e7e7fb56743468e22cb6`; judge protocol v2 SHA `4aa5f3d910ecdf312b15d082f506f4e92a435f46df6a43fbe8f734db4ed9030a`.
 - Current resources: RAM available 4,85 GiB; GPU RTX 4050 Laptop, 5.345 MiB free VRAM; C: free 246 GiB; Ollama 0.40.16. Both selected models are installed; `ollama ps` was empty at snapshot.
 - Hash capture after commit `caa1d64`: **268** rows, test SHA-256 `ea5fa56c6af74ec77f50da7c3dbaa986f138fc08c02dc9bba195956fb410dc40`. The packet builder used the held-out question fields after freeze but stopped at a 75-page PDF; it wrote no packet and ran no model. It did not expose answer labels to model/reviewer or output them.
-- The 75-page paper exceeds the app's 50-page upload default. The benchmark packet builder now admits at most 200 source pages; the default app limit, parser extraction, chunking, embedding and retrieval ranking remain unchanged. This limit is in the candidate config and pipeline-code hashes and will be bound to freeze v2 before inference. The failed build may have created local parsed caches in `data/papers`; they are retained.
+- The 75-page paper exceeds the app's 50-page upload default. The benchmark packet builder now admits at most 200 source pages; the default app limit, parser extraction, chunking, embedding and retrieval ranking remain unchanged. This limit is in the candidate config and pipeline-code hashes and is bound to freeze v2 before inference. The failed build may have created local parsed caches in `data/papers`; they are retained.
 - Regressions after the change: focused benchmark + pipeline suite **43/43 PASS**; full suite **86/86 PASS**. Freeze v1 recorded test SHA-256 `ea5fa56c6af74ec77f50da7c3dbaa986f138fc08c02dc9bba195956fb410dc40` for 268 rows. Packet construction read the held-out question records, then stopped at the 75-page admission check; it wrote no packets and ran no inference or scoring. Answer labels were not printed or forwarded to a model/reviewer.
-- Next: commit/push code/config/docs/log only; create `final_test_freeze_v2.json` bound to the final candidate commit; capture and verify the same dataset hash; build all 268 packets; run candidate and baseline once; blind AI review and score.
+- Freeze v2 (`data/benchmark/final_test_freeze_v2.json`) binds final commit `39c79f372475dba7d892a49f7ef76935e7cf11b0`, candidate config SHA `6417e2a6d52ea413cc2a1f99c680eaa74e2ffea078bdca10aaf8b1e0772883b9`, test SHA above and page allowance 200. Packet artifact has 268 unique IDs, 1,340 evidence chunks, category counts math/code/table/unanswerable = 90/66/58/54; packet SHA-256 `c5df1b6e6553d89730fd2ced1b166d91ed704a39ba941c48c09ce971f339f7b8`; all 268 passed packet/evidence checksum and manifest checks, with no label fields.
+- Inference started only after exact Ollama digests matched. At 3.0 GiB available RAM before model load, runtime fell below the protocol's 0.5 GiB safety floor; checkpoint retained 15 candidate completions and 122 `resource_ineligible` rows before a graceful interrupt. `ollama stop qwen2.5:3b` unloaded the model; current available RAM recovered to 3.08 GiB. Baseline has no predictions. The run dir/checkpoint remains intact; resume with `--resume --retry-failed` only when RAM is stable at least 5 GiB. Active Roblox/Steam GPU use was left alone; it affects timing reproducibility but no model identity/config.
+
 
 Regression hiện tại: **60 tests PASS** (36 cũ + 24 benchmark), log `data/benchmark/local_llm_runs/foundation_stable_v1/regression.log`. Test 120 case dùng mock, không được xem là 120 lượt model thật.
 

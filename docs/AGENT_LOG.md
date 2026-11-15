@@ -1327,3 +1327,41 @@ A summary command first failed to serialize a hashtable with a numeric key; rera
 - Commit/push: `ecd8e3ef36c62a3471d75646b2398ea1289504c2` (`fix(benchmark): allow long papers in frozen test builder`) ?? push th?nh c?ng l?n `origin/main`. Candidate config, builder guard, tests, README, plan, ti?n ??, candidate report v? log ??u ?? commit; staging list x?c nh?n kh?ng c? `data/`.
 - Ki?m ch?ng tr??c commit: focused suite 43/43 PASS, full suite 86/86 PASS, `git diff --cached --check` s?ch; m?i source hash map trong config kh?p.
 - C?n l?i: t?o log-sync commit l?m candidate freeze SHA cu?i; t?o freeze manifest v2 local, capture l?i hash test v? d?ng packet. Ch?a inference/scoring.
+
+
+## 2026-11-15 20:00:00 +07:00 ? Build packet v? checkpoint inference frozen test
+
+- Y?u c?u: ti?p t?c Phase 6 theo plan; b?o to?n dataset, kh?ng commit `data/benchmark/`.
+- Freeze v2: t?o local manifest sau commit cu?i `39c79f372475dba7d892a49f7ef76935e7cf11b0`, candidate config SHA `6417e2a6d52ea413cc2a1f99c680eaa74e2ffea078bdca10aaf8b1e0772883b9`; capture x?c nh?n 268 rows v? test SHA-256 `ea5fa56c6af74ec77f50da7c3dbaa986f138fc08c02dc9bba195956fb410dc40`. Manifest SHA sau capture `6801e1017933641245e873a3ee262ca32527a9c7f2e00b1deca792377ab90c54`; gi? nguy?n freeze v1 l?m l?ch s?.
+- Packet: d?ng th?nh c?ng 268 ID duy nh?t, 1.340 evidence chunks (category math/code/table/unanswerable 90/66/58/54), kh?ng packet r?ng. Kh?ng c? answer/rubric fields; packet/evidence SHA, manifest, freeze, protocol v? test hashes ??u kh?p. Packet SHA-256 `c5df1b6e6553d89730fd2ced1b166d91ed704a39ba941c48c09ce971f339f7b8`; manifest v? packet ch? ? `data/benchmark/`. RAM builder th?p nh?t quan s?t kho?ng 1.44 GiB, t?ng l?i sau khi ho?n t?t.
+- Inference: API Ollama x?c nh?n digest ??ng cho `qwen2.5:3b` v? `qwen3.5:2b`. L??t frozen b?t ??u candidate; checkpoint c? 15 `completed`, 122 `resource_ineligible`, 137 record t?ng; baseline ch?a c? record. RAM kh? d?ng gi?m t? kho?ng 2.96 GiB tr??c load xu?ng 0.34 GiB; runtime guard 0.5 GiB k?ch ho?t. G?i Ctrl-C, process k?t th?c code 1; sau ?? `ollama stop qwen2.5:3b` unload model, `ollama ps` r?ng v? RAM h?i 3.08 GiB. Checkpoint gi? ? `data/benchmark/local_llm_runs/final_test_v1/`; kh?ng xem answer text, ch?a blind review/scoring. Resume ??ng run b?ng `--resume --retry-failed` khi RAM ?n ??nh ?5 GiB ?? c? ?? d? ??a. Kh?ng ??ng Roblox/Steam ?ang d?ng m?y; timing khi ch?ng ch?y s? c?n ghi nh?n.
+- T?i li?u: c?p nh?t README, plan, candidate report v? progress report v?i tr?ng th?i packet/inference m?i; ch?a ch?y regression l?i v? c?c thay ??i t?i li?u, code freeze gi? nguy?n.
+- L?i/th? l?i: hai l?n g?i `request_user_input_async` sai schema (`question` kh?ng ???c h? tr?), l?n th? ba g?i ??ng v? ?ang ch? tr? l?i. M?t l?nh theo d?i ??c to?n b? metadata model/license trong `manifest.json` ngo?i ? mu?n do ch?n nh?m tr??ng `models`; kh?ng ??c/in ra prediction answers.
+- C?n l?i: ch? RAM kh? d?ng ?n ??nh ?5 GiB ho?c ng??i d?ng t? gi?i ph?ng RAM; resume candidate failed/missing rows v? ch?y baseline; t?o blind AI review, ki?m ch?o m?u, score v? ho?n t?t report. Kh?ng c? k?t lu?n candidate t? l??t d? dang.
+
+
+## 2026-11-15 20:04:24 +07:00 ? Ch? ?i?u ki?n RAM ?? resume
+
+- Theo d?i sau `ollama stop qwen2.5:3b`: `ollama ps` r?ng, RAM t?ng h?i l?n 3.08 GiB r?i ? snapshot m?i gi?m c?n 2.63 GiB d? model kh?ng ch?y. Kh?ng resume khi d??i ng??ng v?n h?nh 5 GiB. Roblox/Steam v?n l? ti?n tr?nh ng??i d?ng; kh?ng ??ng ho?c d?ng ch?ng.
+- Tr?ng th?i d? li?u gi? nguy?n: final packet v2 ?? 268; partial run c? 15 candidate completed, 122 `resource_ineligible`, baseline ch?a c? output; ch?a ??c prediction text, ch?a t?o review/score. Checkpoint gi? ?? retry ??ng c?ng run/freeze.
+- README/progress/candidate report/plan ?? ph?n ?nh freeze v2 v? checkpoint; c?c thay ??i t?i li?u c?n ? working tree ?? HEAD ti?p t?c ??ng SHA freeze `39c79f372475dba7d892a49f7ef76935e7cf11b0`. Code/config freeze kh?ng ??i.
+- ?? g?i c?u h?i v? ch? RAM hay ng??i d?ng t? gi?i ph?ng RAM; ch?a c? tr? l?i t?i th?i ?i?m ghi log. Ti?p theo ch? resume c?ng run khi m?y c? ?? RAM ho?c sau khi ng??i d?ng b?o ?? gi?i ph?ng; sau ?? blind-review v? score.
+
+
+## 2026-11-15 20:08:00 +07:00 ? Recheck RAM before retry
+
+- Revalidated the stopped run: no live benchmark process; `ollama ps` empty; checkpoint still 15 candidate completions + 122 resource skips; freeze/packet hashes unchanged.
+- RAM availability fluctuated from 2.60 to 2.72 GiB in this check, below the 5 GiB resume margin and below the current model-load reserve. Top RSS was concentrated in browser/game/IDE/communication apps; nothing was closed or altered. Do not retry until the user frees memory or RAM rises and stays ?5 GiB.
+- No test outputs reviewed; no scoring. The pending user choice remains unanswered.
+
+
+## 2026-11-15 23:04:14 +07:00 — Hoàn tất Phase 6 frozen benchmark
+
+- Yêu cầu: tiếp tục plan benchmark sau khi người dùng bảo kiểm tra RAM; giải thích tiến độ trong lúc chờ và hoàn tất lượt final test đã khóa.
+- Việc đã làm: đối chiếu README, plan Phase 6, freeze v2 và judge protocol; xác nhận HEAD trước scoring là freeze SHA `39c79f372475dba7d892a49f7ef76935e7cf11b0`. Hợp nhất 536 review receipts đúng prediction IDs; thay 113 phiếu bằng cross-audit độc lập; áp dụng 28 adjudication correctness; chuẩn hóa trạng thái citation theo protocol và allowed pages. Tạo `reviews_resolved_v1.jsonl` và manifest local.
+- Kết quả scorer một lần, exit 0: candidate `qwen2.5:3b` Q4_K_M đạt 268/268, 0 lỗi kỹ thuật, correctness 0,453; baseline `qwen3.5:2b` Q8_0 đạt 268/268, 0 lỗi, correctness 0,343. Paired gain +0,110, CI bootstrap 95% [+0,062, +0,159]. Candidate qua overall, technical-failure và paired gates; Code 0,311 < 0,35 nên gate chung **FAIL**. Category candidate Math 0,428, Table 0,422, Unanswerable 0,704. Review là AI-only, không có human/expert audit.
+- Hashes/artifact: test `ea5fa56c6af74ec77f50da7c3dbaa986f138fc08c02dc9bba195956fb410dc40`; packet `c5df1b6e6553d89730fd2ced1b166d91ed704a39ba941c48c09ce971f339f7b8`; reviews `1d8040bfd18560deb3238a5988ea97be8e49cb5578dc8f94649831d7b33e192a`. Báo cáo JSON/Markdown, leaderboard, metrics và toàn bộ reviews nằm dưới `data/benchmark/local_llm_runs/final_test_v1/`; không stage/commit `data/benchmark/`.
+- Cập nhật tài liệu: `README.md`, `docs/BENCHMARK_CANDIDATE_SELECTION.md`, `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md`, `plan/PLAN_BENCHMARK_LOCAL_LLM_DEEPRESEARCH.md`; plan ghi Phase 6 hoàn tất, gate fail và cấm tuning trên held-out này. Không sửa source code/config và không chạy test suite. `git diff --check` không báo whitespace error; Git có cảnh báo chuẩn hóa LF/CRLF cho hai file Markdown.
+- Artifact phụ: `score_frozen_test.py` tạo leaderboard CSV và report Markdown nhưng không materialize `metrics.json`, dù report trỏ tới file đó. Sau khi scorer chạy xong, tạo `metrics.json` từ cùng hàm `scoring_local.summarize`; xác minh 10 dòng khớp số dòng leaderboard CSV. Không chạy lại scorer; cần sửa hành vi này trong version source sau nếu có benchmark mới.
+- Lệnh/kiểm tra thất bại đã xử lý: cú pháp Bash heredoc không chạy trong PowerShell; thử tên sidecar review và judge-protocol Markdown không tồn tại; Python hệ thống thiếu `numpy`; lần đầu đọc `metrics.json` thất bại vì scorer chưa tạo file; lần cập nhật docs đầu bị code page PowerShell đổi dấu tiếng Việt và không ghi file. Đã chuyển sang PowerShell here-string/UTF-8, tên file thực tế, và `.venv-sanity311`; các thao tác thất bại không làm thay đổi dữ liệu. Một lượt in evidence dài bị cắt nên đã truy vấn lại từng QID cần adjudicate.
+- Còn lại: không còn bước Phase 6. Candidate không đạt gate. Nếu tiếp tục cải thiện, dùng dev trên version mới và held-out split mới; không dùng 268 câu này để tuning. Dataset/run artifacts tiếp tục nằm ngoài Git.

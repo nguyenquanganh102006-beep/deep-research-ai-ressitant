@@ -4,7 +4,7 @@
 **Ngày lập:** 12/11/2026  
 **Repo:** `nguyenquanganh102006-beep/deep-research-ai-ressitant`  
 **Định hướng:** Benchmark trước, phân tích lỗi, tối ưu có kiểm soát, rồi benchmark lại.  
-**Trạng thái:** ĐANG THỰC HIỆN — Phase 0–5 đã chạy theo các báo cáo tiến độ; Phase 6 đang đóng băng lại candidate sau khi packet builder gặp PDF 75 trang. Benchmark-only page override đã qua full regression 86/86; freeze v2, packet build, inference và review còn chờ. Xem `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md` để biết trạng thái mới nhất; các checklist dưới đây được cập nhật theo bằng chứng thực thi.
+**Trạng thái:** Phase 6 đã hoàn tất lượt đánh giá frozen. Candidate `qwen2.5:3b` không đạt toàn bộ gate vì điểm Code 0,311 thấp hơn ngưỡng 0,35; paired gain so với baseline vẫn dương. Kết quả là AI-reviewed, chưa phải human/expert gold. Xem `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md` và `docs/BENCHMARK_CANDIDATE_SELECTION.md`.
 
 > **Mục tiêu cốt lõi:** Tìm được các LLM local phù hợp nhất cho QA trên paper khoa học, đặc biệt **Math, Code/Algorithm, Table/Result và Unanswerable**, dưới giới hạn **RTX 4050 Laptop 6 GB VRAM** (RAM khả dụng và dung lượng ổ phải đo lại). Chọn theo **độ đúng, độ tin cậy của bằng chứng, tốc độ và khả năng thực sự chạy local**, không chỉ số tham số.
 
@@ -298,11 +298,12 @@ Chọn **12 câu cố định** từ 120 dev: 3 Math, 3 Code, 3 Table, 3 Negativ
 
 ### Phase 6 — Freeze candidate, test cuối (P3)
 
-- Ghi nhận: freeze v1 (`caa1d64`) bị supersede trước inference vì builder gặp PDF 75 trang, vượt upload mặc định 50 trang. Đã thêm admission limit 200 trang riêng cho benchmark; app mặc định và các bước parse/chunk/embed/rank không đổi. Focused suite 43/43 và full regression 86/86 đều PASS. Hash test vẫn là 268 câu; packet đầu chưa được tạo, chưa chạy model/scoring.
-- [ ] Chốt: commit, prompt hash, model digest/quant, retrieval config, hardware, scoring rubric và thresholds **trước** khi xem test frozen. Candidate và thresholds đã mô tả ở `docs/BENCHMARK_CANDIDATE_SELECTION.md`; test hash đã capture ở freeze v1, cần kiểm chứng lại và bind vào freeze v2 sau commit.
-- [ ] Chạy **một lần đánh giá cuối trên test frozen 268 câu** cho cấu hình đã chọn và baseline, không dùng để tuning.
-- [ ] Nếu sau đó cần sửa, phát hành protocol/model version mới; không tái sử dụng điểm held-out như dev.
-- [ ] Xuất report final với phân biệt AI-reviewed gold và human audit; nêu rõ giới hạn khoa học.
+- Lịch sử: freeze v1 (`caa1d64`) bị supersede khi builder gặp PDF 75 trang vượt upload default 50. Benchmark-only admission limit 200 trang đã được thêm trước freeze v2; app default, parser/chunker/embed/rank không đổi. Focused regression 43/43 và full suite 86/86 PASS trước khi freeze. Freeze v2 giữ nguyên test SHA, 268 packet đã build và verify. Lượt inference đầu tạm dừng an toàn khi RAM chạm guard; checkpoint được resume cùng freeze khi đủ tài nguyên.
+- [x] Khóa commit, prompt hash, model digest/quantization, retrieval config, hardware, judge rubric và thresholds trước test. Freeze/packet manifest bind commit/config/protocol/test hash.
+- [x] Chạy duy nhất một lượt final test frozen 268 câu cho candidate và baseline, không tune trên test: cả hai model hoàn tất 268/268, không có lỗi kỹ thuật. Candidate 0,453 overall, baseline 0,343; paired gain +0,110, bootstrap CI 95% [+0,062, +0,159].
+- [x] Ghi gate: overall, paired gain và paired CI đạt; category Code của candidate 0,311 < 0,35 nên **candidate FAIL toàn gate**. Các category khác: Math 0,428; Table 0,422; Unanswerable 0,704.
+- [x] Xuất report và review receipts: 536 receipts, 113 lượt cross-audit độc lập, 28 bất đồng correctness adjudicate; kết quả AI-only, chưa có human/expert audit. Chi tiết tại `docs/BENCHMARK_CANDIDATE_SELECTION.md` và artifact local `data/benchmark/local_llm_runs/final_test_v1/`.
+- [x] Giữ nguyên held-out: không tuning theo 268 câu. Mọi thay đổi tiếp theo cần version mới và một held-out split mới.
 
 ---
 
