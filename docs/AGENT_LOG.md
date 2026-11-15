@@ -1365,3 +1365,8 @@ A summary command first failed to serialize a hashtable with a numeric key; rera
 - Artifact phụ: `score_frozen_test.py` tạo leaderboard CSV và report Markdown nhưng không materialize `metrics.json`, dù report trỏ tới file đó. Sau khi scorer chạy xong, tạo `metrics.json` từ cùng hàm `scoring_local.summarize`; xác minh 10 dòng khớp số dòng leaderboard CSV. Không chạy lại scorer; cần sửa hành vi này trong version source sau nếu có benchmark mới.
 - Lệnh/kiểm tra thất bại đã xử lý: cú pháp Bash heredoc không chạy trong PowerShell; thử tên sidecar review và judge-protocol Markdown không tồn tại; Python hệ thống thiếu `numpy`; lần đầu đọc `metrics.json` thất bại vì scorer chưa tạo file; lần cập nhật docs đầu bị code page PowerShell đổi dấu tiếng Việt và không ghi file. Đã chuyển sang PowerShell here-string/UTF-8, tên file thực tế, và `.venv-sanity311`; các thao tác thất bại không làm thay đổi dữ liệu. Một lượt in evidence dài bị cắt nên đã truy vấn lại từng QID cần adjudicate.
 - Còn lại: không còn bước Phase 6. Candidate không đạt gate. Nếu tiếp tục cải thiện, dùng dev trên version mới và held-out split mới; không dùng 268 câu này để tuning. Dataset/run artifacts tiếp tục nằm ngoài Git.
+
+
+## 2026-11-15 23:08:08 +07:00 — Push tài liệu Phase 6
+
+- Commit tài liệu `92cdce66aafa9677dbe894f949d08d8fb2633b80` đã push thành công lên `origin/main`; commit chỉ gồm README, plan, progress, candidate report và log. `data/benchmark/` vẫn untracked, không stage/commit/push.
