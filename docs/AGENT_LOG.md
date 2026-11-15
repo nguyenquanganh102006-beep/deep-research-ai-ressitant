@@ -1302,3 +1302,10 @@ A summary command first failed to serialize a hashtable with a numeric key; rera
 - Preflight snapshot: Python 3.11.9, Ollama 0.40.16, RTX 4050 Laptop 6 GB driver 536.52; RAM kh? d?ng 4.85 GiB, VRAM tr?ng 5,345 MiB, ? C tr?ng 246 GiB. Hai model ?? c?i, `ollama ps` r?ng. SHA prompt/protocol/judge v? source/code ???c bind ? candidate config.
 - File li?n quan: `src/benchmark/local_cli.py`, `src/benchmark/runner_local.py`, `src/benchmark/scoring_local.py`, scripts build/capture/prepare/score final test v? consolidator Track C; configs candidate/protocol; tests local benchmark; README, plan, progress, candidate report v? c?c b?o c?o Phase 5 ?ang ???c chu?n b? commit. `data/benchmark/` v?n n?m ngo?i Git.
 - C?n l?i: stage t??ng minh code/config/docs/tests/log, commit/push m? kh?ng stage dataset; ghi freeze commit v?o manifest local; ch? sau ?? m?i capture test hash, build packets, ch?y m?t l?n candidate+baseline, blind AI-review v? xu?t final report. Human/expert audit ch?a c?.
+
+
+## 2026-11-15 18:55:36 +07:00 ? Push ph?n code/docs tr??c test
+
+- Trong c?ng y?u c?u ti?p t?c benchmark, ?? stage t??ng minh 37 file source/config/docs/tests; `git diff --cached --name-only` x?c nh?n kh?ng c? `data/`. Commit `99a3638f9f023cc25b9e39ad9ebcb2ee3e363b4f` (`feat(benchmark): prepare frozen final evaluation`) ?? push th?nh c?ng l?n `origin/main` (remote ti?n t? `44be0c4` ??n `99a3638`). Regression suite ngay tr??c commit: 85/85 PASS.
+- Sau commit/push, `git status --short` ch? c?n `?? data/benchmark/`; kh?ng c? dataset hay model artifacts trong commit.
+- C?n l?i: t?o log-sync commit ghi nh?n push n?y; d?ng SHA c?a commit cu?i ?? l?m candidate freeze SHA. Ch?a m? ho?c hash test dataset.
