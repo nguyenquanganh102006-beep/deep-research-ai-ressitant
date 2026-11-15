@@ -11,7 +11,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import PROJECT_ROOT
-from src.benchmark.local_common import file_hash, read_json, read_rows
+from src.benchmark.local_common import file_hash, pipeline_code_hashes, read_json, read_rows
 from src.benchmark.scoring_local import EXCLUDED, export_metrics, review_id, summarize
 
 
@@ -72,7 +72,9 @@ def score(run_dir: Path, packets_path: Path, freeze_path: Path, reviews_path: Pa
             or candidate_doc.get("models") != freeze.get("models")
             or candidate_doc.get("thresholds") != freeze.get("thresholds")
             or candidate_doc.get("benchmark_code_sha256") != freeze.get("benchmark_code_sha256")
+            or candidate_doc.get("pipeline_code_sha256") != freeze.get("pipeline_code_sha256")
             or candidate_doc.get("phase6_code_sha256") != freeze.get("phase6_code_sha256")
+            or candidate_doc.get("retrieval") != freeze.get("retrieval")
             or candidate_doc.get("protocol_path") != freeze.get("protocol_path")
             or candidate_doc.get("protocol_sha256") != freeze.get("protocol_sha256")
             or candidate_doc.get("prompt_sha256") != freeze.get("prompt_sha256")
@@ -86,6 +88,8 @@ def score(run_dir: Path, packets_path: Path, freeze_path: Path, reviews_path: Pa
                     sorted((PROJECT_ROOT / "src/benchmark").glob("*.py"))}
     if current_code != freeze.get("benchmark_code_sha256"):
         raise ValueError("Benchmark source code changed after candidate freeze")
+    if pipeline_code_hashes() != freeze.get("pipeline_code_sha256"):
+        raise ValueError("PDF ingestion/retrieval pipeline changed after candidate freeze")
     judge_protocol_path = PROJECT_ROOT / freeze.get("judge_protocol_path", "")
     if file_hash(judge_protocol_path) != freeze.get("judge_protocol_sha256"):
         raise ValueError("Judge protocol differs from the pretest freeze")
@@ -102,7 +106,8 @@ def score(run_dir: Path, packets_path: Path, freeze_path: Path, reviews_path: Pa
             or run_manifest.get("freeze_manifest_sha256") != file_hash(freeze_path)
             or run_manifest.get("test_frozen_sha256") != freeze.get("test_frozen_sha256")
             or run_manifest.get("prompt_sha256") != freeze.get("prompt_sha256")
-            or run_manifest.get("code_sha256") != freeze.get("benchmark_code_sha256")):
+            or run_manifest.get("code_sha256") != freeze.get("benchmark_code_sha256")
+            or run_manifest.get("pipeline_code_sha256") != freeze.get("pipeline_code_sha256")):
         raise ValueError("Run manifest differs from frozen commit/config/input")
     if (packets_manifest.get("freeze_manifest_sha256") != file_hash(freeze_path)
             or packets_manifest.get("test_frozen_sha256") != freeze.get("test_frozen_sha256")
@@ -195,6 +200,7 @@ def score(run_dir: Path, packets_path: Path, freeze_path: Path, reviews_path: Pa
         "test_frozen_sha256": freeze["test_frozen_sha256"],
         "packet_sha256": file_hash(packets_path),
         "protocol_sha256": freeze["protocol_sha256"],
+        "pipeline_code_sha256": freeze["pipeline_code_sha256"],
         "judge_protocol_sha256": freeze["judge_protocol_sha256"],
         "candidate": {**candidate, **candidate_stats},
         "baseline": {**baseline, **baseline_stats},

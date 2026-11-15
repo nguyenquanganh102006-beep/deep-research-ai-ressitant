@@ -10,7 +10,7 @@ from pathlib import Path
 
 from config import PROJECT_ROOT
 from src.benchmark.local_common import (CONFIG, canonical, fingerprint, file_hash, read_rows,
-                                        read_json, write_json, append_jsonl)
+                                        read_json, write_json, append_jsonl, pipeline_code_hashes)
 from src.benchmark.local_llm_adapter import OllamaAdapter, ModelError
 from src.metrics import capture_resource_metrics as _capture_resource_metrics
 from src.benchmark.local_common import file_lock, RUNS
@@ -82,13 +82,17 @@ def _validate_test_freeze(freeze_path: Path, packets_path: Path, protocol_path: 
     if (candidate_doc.get('models') != freeze.get('models')
             or candidate_doc.get('thresholds') != freeze.get('thresholds')
             or candidate_doc.get('benchmark_code_sha256') != freeze.get('benchmark_code_sha256')
+            or candidate_doc.get('pipeline_code_sha256') != freeze.get('pipeline_code_sha256')
             or candidate_doc.get('phase6_code_sha256') != freeze.get('phase6_code_sha256')
+            or candidate_doc.get('retrieval') != freeze.get('retrieval')
             or candidate_doc.get('protocol_path') != protocol_rel
             or candidate_doc.get('protocol_sha256') != freeze.get('protocol_sha256')):
         raise ValueError('Frozen models, thresholds, or code differ from the committed candidate selection')
     phase6_code = {rel: file_hash(PROJECT_ROOT / rel) for rel in candidate_doc.get('phase6_code_sha256', {})}
     if not phase6_code or phase6_code != freeze.get('phase6_code_sha256'):
         raise ValueError('Final test preparation/scoring code differs from the pretest freeze')
+    if pipeline_code_hashes() != freeze.get('pipeline_code_sha256'):
+        raise ValueError('PDF ingestion/retrieval pipeline differs from the pretest freeze')
     if (freeze.get('prompt_sha256') != file_hash(CONFIG / 'prompt_v1.txt')
             or candidate_doc.get('prompt_sha256') != freeze.get('prompt_sha256')
             or freeze.get('judge_protocol_sha256') is None
@@ -192,10 +196,14 @@ def _run(packets_path: Path, tags: list[str], run_dir: Path, *, resume=False,
                    sorted((PROJECT_ROOT / 'src/benchmark').glob('*.py'))}
     if test_freeze is not None and code_sha256 != test_freeze.get('benchmark_code_sha256'):
         raise ValueError('Benchmark source code differs from the pretest freeze')
+    retrieval_code_sha256 = pipeline_code_hashes()
+    if test_freeze is not None and retrieval_code_sha256 != test_freeze.get('pipeline_code_sha256'):
+        raise ValueError('PDF ingestion/retrieval code differs from the pretest freeze')
     lock = {'schema_version': 1, 'packets_sha256': file_hash(packets_path), 'environment': environment,
             'protocol_path': str(protocol_path), 'protocol_sha256': file_hash(protocol_path),
             'protocol': protocol, 'prompt_sha256': prompt_hash,
             'split': split, 'track': next(iter(tracks)),
+            'pipeline_code_sha256': retrieval_code_sha256,
             'models': models,
             'git_sha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=PROJECT_ROOT, text=True).strip(),
             'code_sha256': code_sha256}

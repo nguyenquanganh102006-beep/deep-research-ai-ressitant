@@ -13,6 +13,10 @@ from src.storage import write_json, append_jsonl
 CONFIG = PROJECT_ROOT / 'configs/benchmark'
 DATA = PROJECT_ROOT / 'data/benchmark/curated_v1'
 RUNS = PROJECT_ROOT / 'data/benchmark/local_llm_runs'
+PIPELINE_CODE_FILES = (
+    'config.py', 'src/parser.py', 'src/ingest.py', 'src/chunker.py',
+    'src/embeddings.py', 'src/retriever.py', 'src/storage.py',
+)
 
 
 @contextmanager
@@ -53,6 +57,10 @@ def file_hash(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b''):
             h.update(block)
     return h.hexdigest()
+
+
+def pipeline_code_hashes() -> dict[str, str]:
+    return {relative: file_hash(PROJECT_ROOT / relative) for relative in PIPELINE_CODE_FILES}
 
 
 def read_json(path: Path):

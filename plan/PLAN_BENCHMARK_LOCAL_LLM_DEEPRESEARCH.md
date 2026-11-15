@@ -4,7 +4,7 @@
 **Ngày lập:** 12/11/2026  
 **Repo:** `nguyenquanganh102006-beep/deep-research-ai-ressitant`  
 **Định hướng:** Benchmark trước, phân tích lỗi, tối ưu có kiểm soát, rồi benchmark lại.  
-**Trạng thái:** ĐANG THỰC HIỆN — Phase 0–5 đã chạy theo các báo cáo tiến độ; Phase 6 đang chuẩn bị đóng băng candidate và chạy test held-out. Xem `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md` để biết trạng thái mới nhất; các checklist dưới đây được cập nhật theo bằng chứng thực thi.
+**Trạng thái:** ĐANG THỰC HIỆN — Phase 0–5 đã chạy theo các báo cáo tiến độ; Phase 6 đang đóng băng lại candidate sau khi packet builder gặp PDF 75 trang. Benchmark-only page override đã qua full regression 86/86; freeze v2, packet build, inference và review còn chờ. Xem `docs/LOCAL_LLM_BENCHMARK_PROGRESS.md` để biết trạng thái mới nhất; các checklist dưới đây được cập nhật theo bằng chứng thực thi.
 
 > **Mục tiêu cốt lõi:** Tìm được các LLM local phù hợp nhất cho QA trên paper khoa học, đặc biệt **Math, Code/Algorithm, Table/Result và Unanswerable**, dưới giới hạn **RTX 4050 Laptop 6 GB VRAM** (RAM khả dụng và dung lượng ổ phải đo lại). Chọn theo **độ đúng, độ tin cậy của bằng chứng, tốc độ và khả năng thực sự chạy local**, không chỉ số tham số.
 
@@ -298,7 +298,8 @@ Chọn **12 câu cố định** từ 120 dev: 3 Math, 3 Code, 3 Table, 3 Negativ
 
 ### Phase 6 — Freeze candidate, test cuối (P3)
 
-- [ ] Chốt: commit, prompt hash, model digest/quant, retrieval config, hardware, scoring rubric và thresholds **trước** khi xem test frozen. Candidate và thresholds đã mô tả ở `docs/BENCHMARK_CANDIDATE_SELECTION.md`; còn commit/freeze manifest và test hash.
+- Ghi nhận: freeze v1 (`caa1d64`) bị supersede trước inference vì builder gặp PDF 75 trang, vượt upload mặc định 50 trang. Đã thêm admission limit 200 trang riêng cho benchmark; app mặc định và các bước parse/chunk/embed/rank không đổi. Focused suite 43/43 và full regression 86/86 đều PASS. Hash test vẫn là 268 câu; packet đầu chưa được tạo, chưa chạy model/scoring.
+- [ ] Chốt: commit, prompt hash, model digest/quant, retrieval config, hardware, scoring rubric và thresholds **trước** khi xem test frozen. Candidate và thresholds đã mô tả ở `docs/BENCHMARK_CANDIDATE_SELECTION.md`; test hash đã capture ở freeze v1, cần kiểm chứng lại và bind vào freeze v2 sau commit.
 - [ ] Chạy **một lần đánh giá cuối trên test frozen 268 câu** cho cấu hình đã chọn và baseline, không dùng để tuning.
 - [ ] Nếu sau đó cần sửa, phát hành protocol/model version mới; không tái sử dụng điểm held-out như dev.
 - [ ] Xuất report final với phân biệt AI-reviewed gold và human audit; nêu rõ giới hạn khoa học.

@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from types import SimpleNamespace
 import numpy as np
 from src.ingest import index_artifacts_valid
@@ -62,18 +62,42 @@ class PipelineSanityTests(unittest.TestCase):
             parse.side_effect = None
             self.assertFalse(ingest_pdf_bytes(data, "fixture.pdf")[1])
 
+    def test_ingest_forwards_benchmark_only_page_limit(self):
+        import fitz
+        from src.ingest import ingest_pdf_bytes
+        document = fitz.open()
+        for _ in range(51): document.new_page()
+        data = document.tobytes()
+        document.close()
+        validator = Mock(return_value={"page_count": 51, "title": "", "author": ""})
+        pages = [{"page_number": i, "parser_warning": []} for i in range(1, 52)]
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch("src.storage.PAPERS_DIR", Path(tmp)), \
+             patch("src.ingest.validate_pdf", validator), \
+             patch("src.ingest.parse_pdf", return_value=(pages, "fixture")), \
+             patch("src.ingest.create_chunks", return_value=[{"chunk_id": "c1", "page_start": 1, "page_end": 51, "content": "fixture"}]), \
+             patch("src.ingest.embed_passages", return_value=np.array([[1, 0]], dtype=np.float32)), \
+             patch("src.ingest.capture_resource_metrics", return_value={}), \
+             patch("src.ingest.embedding_fingerprint", return_value="fixture-fingerprint"):
+            metadata, reused = ingest_pdf_bytes(data, "large.pdf", max_pages=200)
+        self.assertFalse(reused)
+        self.assertEqual(metadata["page_count"], 51)
+        validator.assert_called_once_with(data, "large.pdf", max_pages=200)
+
 
     def test_invalid_empty_encrypted_and_oversize_page_pdf(self):
         import fitz
         from src.ingest import ingest_pdf_bytes
-        from src.parser import PDFValidationError
+        from src.parser import PDFValidationError, validate_pdf
         for data in [b"", b"not a pdf"]:
             with self.assertRaises(PDFValidationError): ingest_pdf_bytes(data, "fake.pdf")
         from config import MAX_UPLOAD_BYTES
         with self.assertRaises(PDFValidationError): ingest_pdf_bytes(b"x" * (MAX_UPLOAD_BYTES + 1), "too-large.pdf")
         document = fitz.open()
         for _ in range(51): document.new_page()
-        with self.assertRaises(PDFValidationError): ingest_pdf_bytes(document.tobytes(), "large.pdf")
+        large_pdf = document.tobytes()
+        with self.assertRaises(PDFValidationError): ingest_pdf_bytes(large_pdf, "large.pdf")
+        self.assertEqual(validate_pdf(large_pdf, "large.pdf", max_pages=200)["page_count"], 51)
         encrypted = document.tobytes(encryption=fitz.PDF_ENCRYPT_AES_256, owner_pw="owner", user_pw="user")
         with self.assertRaises(PDFValidationError): ingest_pdf_bytes(encrypted, "locked.pdf")
         document.close()

@@ -10,7 +10,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
-from src.benchmark.local_common import CONFIG, DATA, file_hash, read_json
+from src.benchmark.local_common import CONFIG, DATA, file_hash, pipeline_code_hashes, read_json
 
 
 TEST_COUNT = 268
@@ -39,7 +39,9 @@ def capture(freeze_path: Path, protocol_path: Path):
     if (candidate.get("models") != freeze.get("models")
             or candidate.get("thresholds") != freeze.get("thresholds")
             or candidate.get("benchmark_code_sha256") != freeze.get("benchmark_code_sha256")
+            or candidate.get("pipeline_code_sha256") != freeze.get("pipeline_code_sha256")
             or candidate.get("phase6_code_sha256") != freeze.get("phase6_code_sha256")
+            or candidate.get("retrieval") != freeze.get("retrieval")
             or candidate.get("protocol_path") != freeze.get("protocol_path")
             or candidate.get("protocol_sha256") != freeze.get("protocol_sha256")):
         raise ValueError("Frozen models, thresholds, or protocol differ from candidate selection")
@@ -50,6 +52,8 @@ def capture(freeze_path: Path, protocol_path: Path):
                     sorted((PROJECT_ROOT / "src/benchmark").glob("*.py"))}
     if current_code != freeze.get("benchmark_code_sha256"):
         raise ValueError("Benchmark source code changed after candidate freeze")
+    if pipeline_code_hashes() != freeze.get("pipeline_code_sha256"):
+        raise ValueError("PDF ingestion/retrieval pipeline changed after candidate freeze")
     if freeze.get("prompt_sha256") != file_hash(CONFIG / "prompt_v1.txt"):
         raise ValueError("Prompt hash differs from the freeze manifest")
     judge_protocol_path = PROJECT_ROOT / freeze.get("judge_protocol_path", "")

@@ -41,7 +41,10 @@
     "top_k": 5,
     "max_contexts": 5,
     "include_neighbors": false,
-    "input_track": "retrieved_text_frozen"
+    "input_track": "retrieved_text_frozen",
+    "max_source_pages": 200,
+    "source_page_limit_scope": "Benchmark packet builder only; application upload default remains MAX_PAGES=50; parser/chunker/embedding/ranking behavior is unchanged.",
+    "source_page_limit_rationale": "A PDF in the frozen corpus has 75 pages; the existing MVP admission cap rejected it. This benchmark-only override admits full paper text without truncating pages."
   },
   "scoring": {
     "correctness_scale": [
@@ -62,13 +65,13 @@
     "src/benchmark/generate_qasper.py": "229b791428fcfde316d27d253772ae4fe86a6ef80b3b4af4594500498b792365",
     "src/benchmark/import_qasper.py": "5d48d5647bb8d255023ee210b13be019afd127be9871ca909ae6181324d943b4",
     "src/benchmark/local_cli.py": "6377408fb1278df02b471bcc3479c2e915cded5abdde56791982bad867af0854",
-    "src/benchmark/local_common.py": "a5e6600425f24db18df576b7c6ebfbb51776e543bd14e044aa974f73b94e1c5b",
+    "src/benchmark/local_common.py": "bfc65f64c281688cc379010a65aef6d6b162da41d5475e05edf64a505c90048e",
     "src/benchmark/local_llm_adapter.py": "6bb612bfea7d261286dd89e2d194f9b5f827e3135c32d585e9fd4208a9f2a6ce",
     "src/benchmark/prepare_pdf_review.py": "2c32926de4e29e5cb6610cf0c2f89b695711ed5ab4bf6a6a25dc846fe715a517",
     "src/benchmark/report.py": "1f40b3557be6a1eec912344859dc34c09cc2c59db99204f014b630b57b3b6969",
     "src/benchmark/run_pdf.py": "3d88f4093be71a1add1f8f9c17635605fdaf111610c467f272391fd824176740",
     "src/benchmark/run_qasper.py": "afd6cc90edb7f4c60fdf1fb506dddb975e1f9a410191bf80cce5cc06126235a4",
-    "src/benchmark/runner_local.py": "e8a238c45a0dcf03a856111bad320b747487fb75c1cdbd36c576d76b041d7de8",
+    "src/benchmark/runner_local.py": "2d88b5d7fb418322a7546a30cbe67f39ede6390b37b041507356cda5dddfbb18",
     "src/benchmark/scoring_local.py": "17ec0acf559822bbaa646733f378156f5c8f9f708248e45a9dd14d90963c5539",
     "src/benchmark/validate.py": "c733696b7ee621dfab1f0b0a1d336882d506e488b3298bdd5d96e105172b32ca"
   },
@@ -116,11 +119,20 @@
   },
   "phase6_code_sha256": {
     "scripts/benchmark_local_llms.py": "8b4e3f4fafaf41ead1b147d71c83ba49fcd9ab4276102cc5d2adae89fea5775b",
-    "scripts/build_frozen_test_packets.py": "48531ccbce33e8894e2ca830a81d11d62a8ce3bec04e233996ed4c2d73699fa7",
-    "scripts/capture_frozen_test_hash.py": "36f20100ab669deafde72fe8a3a7cdd1b365f0530d2641b044e3620199b5aa64",
-    "scripts/prepare_frozen_test_reviews.py": "7532114faa439f0c128cd62a8c14004b14e862365f5ab64395d250e75863f0fa",
+    "scripts/build_frozen_test_packets.py": "5b72dda024e611e4aa4aa1c53a0aaf29e412f1df56dec7172de531ee98b377b5",
+    "scripts/capture_frozen_test_hash.py": "501b242619775c81c26317f33f77bfa35ddba1ed0f52626b34ae5d29d6fa0270",
+    "scripts/prepare_frozen_test_reviews.py": "d0b9b02be228c0d7ce2db3b47792987d1c78397435a42955535848eccc1b4e20",
     "scripts/prepare_repeat_blind_reviews.py": "ed97955f4b04bd6ce00394d6bb69326988d741657595dfbbc10953e49022429c",
     "scripts/consolidate_benchmark_reviews.py": "579b9475ddd5809b06b3e7edec763231c06e4fbf7fdb37c52fd5a05336d2ca8d",
-    "scripts/score_frozen_test.py": "157e9615bf40fc64200d22289582eefd918625ac762ee51deadd004f4bf438fe"
+    "scripts/score_frozen_test.py": "da70ea47dbeac04df47515120e92c3b1939564426fa89cf1139b1a45ba1398ef"
+  },
+  "pipeline_code_sha256": {
+    "config.py": "28b7ac864db874bd14bee842e4519c81eb2bce57db727453e9848689589f95d6",
+    "src/parser.py": "3f55dde6f86c1f95bc990f7a0f603a5428e6fb2144168e8f73e906f5785b22bd",
+    "src/ingest.py": "4d6be33994a167ed1124b51aaedbbf6d3ce33dbd3162dc84958b8c9fa503df52",
+    "src/chunker.py": "5e97ebe749982aa0da9363b8c2ab82dca923de5b86f23b4cb190f23922c1866a",
+    "src/embeddings.py": "9d9044c3f3ec97f03820626e48780e1d0f00e7e6ed59f9991f23fd0d5e538b3c",
+    "src/retriever.py": "458150437bdd9728a1cbe797c78491140ec2c576a92dc707efa14638cc065c7a",
+    "src/storage.py": "fc57e8ffde4e19113c3b7cf864b07a5a1c67f78d2a8b0a82a954d9e65a7cdbff"
   }
 }

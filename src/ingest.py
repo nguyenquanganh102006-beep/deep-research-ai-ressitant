@@ -33,14 +33,14 @@ class IngestionError(RuntimeError):
         self.document_id = document_id
 
 
-def ingest_pdf_bytes(data: bytes, filename: str) -> tuple[dict[str, Any], bool]:
+def ingest_pdf_bytes(data: bytes, filename: str, *, max_pages: int | None = None) -> tuple[dict[str, Any], bool]:
     clean_name = _safe_filename(filename)
     if not data:
         raise PDFValidationError("File tải lên đang rỗng.")
     if len(data) > MAX_UPLOAD_BYTES:
         size_mb = MAX_UPLOAD_BYTES // (1024 * 1024)
         raise PDFValidationError(f"File vượt giới hạn {size_mb} MB.")
-    info = validate_pdf(data, clean_name)
+    info = validate_pdf(data, clean_name, max_pages=max_pages)
     document_id = hashlib.sha256(data).hexdigest()
     directory = paper_dir(document_id)
     metadata_path = directory / "metadata.json"

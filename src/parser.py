@@ -13,13 +13,17 @@ class PDFValidationError(ValueError):
     """Raised when an upload is not a supported, readable PDF."""
 
 
-def validate_pdf(data: bytes, filename: str) -> dict[str, Any]:
+def validate_pdf(data: bytes, filename: str, *, max_pages: int | None = None) -> dict[str, Any]:
     if not filename.lower().endswith(".pdf"):
         raise PDFValidationError("Chỉ nhận file có đuôi .pdf.")
     if b"%PDF-" not in data[:1024]:
         raise PDFValidationError("Nội dung file không có chữ ký PDF hợp lệ.")
 
     import pymupdf
+
+    page_limit = MAX_PAGES if max_pages is None else max_pages
+    if page_limit < 1:
+        raise ValueError("max_pages must be positive")
 
     try:
         document = pymupdf.open(stream=data, filetype="pdf")
@@ -32,9 +36,9 @@ def validate_pdf(data: bytes, filename: str) -> dict[str, Any]:
         page_count = document.page_count
         if page_count < 1:
             raise PDFValidationError("PDF không có trang nào.")
-        if page_count > MAX_PAGES:
+        if page_count > page_limit:
             raise PDFValidationError(
-                f"PDF có {page_count} trang; giới hạn MVP hiện tại là {MAX_PAGES} trang."
+                f"PDF có {page_count} trang; giới hạn hiện tại là {page_limit} trang."
             )
         metadata = document.metadata or {}
         return {

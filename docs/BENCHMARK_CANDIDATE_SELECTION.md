@@ -25,7 +25,7 @@ Nguồn: [repeat seed report](PHASE5_REPEAT_SEED_COMPARISON.md), [paired vision/
 - Prompt chung: `configs/benchmark/prompt_v1.txt`, SHA-256 `36a4ef28b0c7977d3ccb32d3d90e87a553f8e2259af5e7e7fb56743468e22cb6`.
 - Test protocol: `configs/benchmark/final_test_protocol_v1.json`, SHA-256 `9df24203808769302467709910d7e30522cac119cf7df83756a3c073d08dedb9`.
 - Judge rubric: protocol v2, SHA-256 `4aa5f3d910ecdf312b15d082f506f4e92a435f46df6a43fbe8f734db4ed9030a`.
-- Retrieval: pipeline hiện có, hybrid dense + BM25 / reciprocal-rank fusion, top-5, tối đa 5 context, không thêm neighbor; cùng text packet cho hai model.
+- Retrieval: pipeline hiện có, hybrid dense + BM25 / reciprocal-rank fusion, top-5, tối đa 5 context, không thêm neighbor; cùng text packet cho hai model. Packet builder cho benchmark được phép ingest PDF tối đa 200 trang để giữ nguyên toàn văn các paper; giới hạn upload app vẫn 50 trang. Parser, chunker, embedding và ranking không đổi.
 - Scoring: correctness 0/0,5/1; citation support báo riêng. Lỗi kỹ thuật tính là 0 trong mẫu số eligible; không bỏ case lỗi để tăng điểm.
 - Ngưỡng candidate: overall **≥0,40**; mỗi category **≥0,35**; tối đa **2/268** lỗi kỹ thuật; paired gain so với baseline **≥0,05** và cận dưới CI 95% **>0**. Bootstrap 10.000 lần, seed `20261115`.
 - Không điều chỉnh prompt, retrieval, model, quantization hoặc ngưỡng sau khi xem kết quả test. Kết quả này không dùng để tuning.
@@ -35,4 +35,5 @@ Nguồn: [repeat seed report](PHASE5_REPEAT_SEED_COMPARISON.md), [paired vision/
 - Chỉ hai model text ở trên thuộc primary frozen evaluation; không có specialist hoặc vision fallback trong candidate cuối.
 - Không chạy Q4-vs-Q8 cùng kiến trúc hay context 8K/native-thinking ablation: chúng không cần thiết để chọn Track B candidate trong vòng này.
 - Phần cứng được ghi trước freeze trong machine-readable config. Snapshot hiện tại: Windows 10 build 26300, Python 3.11.9, Ollama 0.40.16, RTX 4050 Laptop 6 GB / driver 536.52, RAM khả dụng khoảng 4,85 GiB, VRAM trống 5.345 MiB.
+- Một paper frozen có 75 trang, vượt admission cap mặc định 50 trang. Vì vậy chỉ benchmark builder dùng max 200; app production vẫn giữ MAX_PAGES=50. Giới hạn này đã được ghi trong candidate config và pipeline source hashes trước inference. Freeze v1 (`caa1d64`) không có override này và bị supersede sau khi builder dừng; freeze v2 phải bind giới hạn mới trước khi chạy model. Lần build đầu chưa ghi packet và chưa chạy inference/scoring.
 - Corpus QA là AI-reviewed. AI agents hỗ trợ chấm mù, nhưng chưa có human/expert audit; không diễn giải điểm như xác nhận khoa học độc lập.

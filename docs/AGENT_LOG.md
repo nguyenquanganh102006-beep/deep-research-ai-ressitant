@@ -1309,3 +1309,13 @@ A summary command first failed to serialize a hashtable with a numeric key; rera
 - Trong c?ng y?u c?u ti?p t?c benchmark, ?? stage t??ng minh 37 file source/config/docs/tests; `git diff --cached --name-only` x?c nh?n kh?ng c? `data/`. Commit `99a3638f9f023cc25b9e39ad9ebcb2ee3e363b4f` (`feat(benchmark): prepare frozen final evaluation`) ?? push th?nh c?ng l?n `origin/main` (remote ti?n t? `44be0c4` ??n `99a3638`). Regression suite ngay tr??c commit: 85/85 PASS.
 - Sau commit/push, `git status --short` ch? c?n `?? data/benchmark/`; kh?ng c? dataset hay model artifacts trong commit.
 - C?n l?i: t?o log-sync commit ghi nh?n push n?y; d?ng SHA c?a commit cu?i ?? l?m candidate freeze SHA. Ch?a m? ho?c hash test dataset.
+
+
+## 2026-11-15 19:36:03 +07:00 ? Ti?p t?c Phase 6, s?a gi?i h?n PDF benchmark
+
+- Y?u c?u: ti?p t?c plan benchmark local LLM. ??c README, plan, ti?n ?? v? candidate config; gi? nguy?n dataset v? kh?ng ??a answer labels v?o model/reviewer.
+- Vi?c ?? l?m: ?i?u tra l?n d?ng packet tr??c d?ng t?i PDF 75 trang do admission cap ?ng d?ng 50 trang. Th?m `max_pages` t?y ch?n cho parser/ingest, ch? builder final-test d?ng gi? tr? ??ng b?ng t?i ?a 200 trang; app v?n m?c ??nh 50. Bind page allowance v?i candidate config v? hash pipeline. C?p nh?t README, plan, ti?n ??, candidate report; gi? nguy?n cache c?c b? ?? t?o b?i l?n th?t b?i.
+- Ki?m tra: focused benchmark + pipeline suite 43/43 PASS; full unittest suite 86/86 PASS. Candidate config SHA-256 `6417e2a6d52ea413cc2a1f99c680eaa74e2ffea078bdca10aaf8b1e0772883b9`; benchmark, Phase 6 v? pipeline source hash maps trong config ??u kh?p file hi?n t?i. `ollama ps` r?ng; hai model finalist ?? c? trong Ollama. T?i snapshot 19:34 +07: RAM kh? d?ng 3.48 GiB, C: c?n 246.57 GiB; RTX 4050 c? 653 MiB VRAM ?ang d?ng v? 49% utilization b?i Roblox/Steam, kh?ng ph?i Ollama.
+- L?n th? tr??c: sau commit/freeze v1, capture x?c nh?n 268 d?ng v? test SHA-256 `ea5fa56c6af74ec77f50da7c3dbaa986f138fc08c02dc9bba195956fb410dc40`. Builder ??c test rows ?? l?y question/paper metadata r?i d?ng ? PDF 75 trang tr??c khi ghi packet; kh?ng inference/score, kh?ng in ho?c chuy?n answer labels cho model/reviewer. C? th? ?? sinh parsed caches trong `data/papers`; kh?ng x?a. Freeze v1 ???c gi? l?ch s? v? supersede.
+- L?i thao t?c ki?m tra: m?t s? l?nh in/??c diff qua encoding m?c ??nh CP1252 kh?ng hi?n th? Unicode, m?t script so s?nh Git diff c?ng decode nh?m; ch?y l?i b?ng UTF-8/ASCII-safe, kh?ng s?a nh?m n?i dung.
+- C?n l?i: commit/push code, config, docs, tests v? log nh?ng lo?i tr? `data/`; t?o freeze v2 sau commit cu?i, capture l?i test hash, d?ng ?? 268 packet, r?i ch?y m?t l?n candidate/baseline v? blind-review/scoring. Ch?a c? k?t qu? test model.

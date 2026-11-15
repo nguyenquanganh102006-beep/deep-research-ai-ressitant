@@ -7,7 +7,8 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from src.benchmark.local_common import CONFIG, PROJECT_ROOT, fingerprint, file_hash, read_json, read_rows, canonical
+from src.benchmark.local_common import (CONFIG, PROJECT_ROOT, canonical, file_hash, fingerprint,
+                                        pipeline_code_hashes, read_json, read_rows)
 from src.benchmark.local_llm_adapter import OllamaAdapter, ModelError
 from src.benchmark.runner_local import run, messages_for, _validate_test_freeze
 from src.benchmark.scoring_local import summarize, review_id, citation_metrics
@@ -93,7 +94,9 @@ class LocalBenchmarkTests(unittest.TestCase):
                 'track': 'retrieved_text_frozen', 'expected_test_question_count': 268,
                 'test_frozen_sha256': 'a' * 64, 'models': candidate['models'],
                 'thresholds': candidate['thresholds'], 'benchmark_code_sha256': code_hashes,
+                'pipeline_code_sha256': candidate['pipeline_code_sha256'],
                 'phase6_code_sha256': candidate['phase6_code_sha256'],
+                'retrieval': candidate['retrieval'],
             }
             freeze_path.write_text(json.dumps(freeze), encoding='utf-8')
             manifest = {
@@ -122,6 +125,7 @@ class LocalBenchmarkTests(unittest.TestCase):
         candidate = read_json(candidate_path)
         code_hashes = {path.relative_to(PROJECT_ROOT).as_posix(): file_hash(path) for path in
                        sorted((PROJECT_ROOT / 'src/benchmark').glob('*.py'))}
+        pipeline_hashes = pipeline_code_hashes()
         with tempfile.TemporaryDirectory(dir=PROJECT_ROOT / 'tests') as tmp:
             root = Path(tmp)
             run_dir = root / 'run'
@@ -147,7 +151,9 @@ class LocalBenchmarkTests(unittest.TestCase):
                 'models': candidate['models'],
                 'thresholds': candidate['thresholds'],
                 'benchmark_code_sha256': code_hashes,
+                'pipeline_code_sha256': pipeline_hashes,
                 'phase6_code_sha256': candidate['phase6_code_sha256'],
+                'retrieval': candidate['retrieval'],
             }
             freeze_path = root / 'freeze.json'
             freeze_path.write_text(json.dumps(freeze), encoding='utf-8')
@@ -194,6 +200,7 @@ class LocalBenchmarkTests(unittest.TestCase):
                 'test_frozen_sha256': freeze['test_frozen_sha256'],
                 'prompt_sha256': freeze['prompt_sha256'],
                 'code_sha256': code_hashes,
+                'pipeline_code_sha256': pipeline_hashes,
             }), encoding='utf-8')
             review_path = run_dir / 'reviews.jsonl'
             review_path.write_text(

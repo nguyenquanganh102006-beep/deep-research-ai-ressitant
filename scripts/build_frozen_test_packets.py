@@ -15,7 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from config import PROJECT_ROOT
 from src.benchmark.evidence_packets import save_packets
-from src.benchmark.local_common import CONFIG, DATA, file_hash, fingerprint, read_json, read_rows
+from src.benchmark.local_common import (CONFIG, DATA, file_hash, fingerprint, pipeline_code_hashes,
+                                        read_json, read_rows)
 from src.benchmark.runner_local import messages_for
 
 
@@ -56,9 +57,11 @@ def _verify_freeze(path: Path, protocol_path: Path):
     if (candidate.get("models") != freeze.get("models")
             or candidate.get("thresholds") != freeze.get("thresholds")
             or candidate.get("benchmark_code_sha256") != freeze.get("benchmark_code_sha256")
+            or candidate.get("pipeline_code_sha256") != freeze.get("pipeline_code_sha256")
             or candidate.get("phase6_code_sha256") != freeze.get("phase6_code_sha256")
             or candidate.get("protocol_path") != freeze.get("protocol_path")
-            or candidate.get("protocol_sha256") != freeze.get("protocol_sha256")):
+            or candidate.get("protocol_sha256") != freeze.get("protocol_sha256")
+            or candidate.get("retrieval") != freeze.get("retrieval")):
         raise ValueError("Frozen models, thresholds, or protocol differ from candidate selection")
     phase6_code = {rel: file_hash(PROJECT_ROOT / rel) for rel in candidate.get("phase6_code_sha256", {})}
     if not phase6_code or phase6_code != freeze.get("phase6_code_sha256"):
@@ -67,6 +70,8 @@ def _verify_freeze(path: Path, protocol_path: Path):
                     sorted((PROJECT_ROOT / "src/benchmark").glob("*.py"))}
     if current_code != freeze.get("benchmark_code_sha256"):
         raise ValueError("Benchmark source code changed after candidate freeze")
+    if pipeline_code_hashes() != freeze.get("pipeline_code_sha256"):
+        raise ValueError("PDF ingestion/retrieval pipeline changed after candidate freeze")
     if freeze.get("prompt_sha256") != file_hash(CONFIG / "prompt_v1.txt"):
         raise ValueError("Prompt hash differs from the freeze manifest")
     judge_protocol_path = PROJECT_ROOT / freeze.get("judge_protocol_path", "")
@@ -109,6 +114,9 @@ def build(freeze_path: Path, protocol_path: Path, output: Path):
     protocol_bytes = protocol_path.read_bytes()
     prompt = (CONFIG / "prompt_v1.txt").read_text(encoding="utf-8")
     top_k = int(protocol["retrieval_top_k"])
+    max_source_pages = int(freeze["retrieval"]["max_source_pages"])
+    if max_source_pages < 1:
+        raise ValueError("Frozen retrieval page allowance must be positive")
     from src.ingest import ingest_pdf_bytes
     from src.retriever import retrieve
 
@@ -124,7 +132,9 @@ def build(freeze_path: Path, protocol_path: Path, output: Path):
             if paper_id not in parsed:
                 if file_hash(source) != paper["pdf_sha256"]:
                     raise ValueError(f"PDF hash mismatch for frozen test paper {paper_id}")
-                parsed[paper_id], _ = ingest_pdf_bytes(source.read_bytes(), source.name)
+                parsed[paper_id], _ = ingest_pdf_bytes(
+                    source.read_bytes(), source.name, max_pages=max_source_pages
+                )
             for chunk in retrieve(parsed[paper_id]["document_id"], question["question"],
                                   top_k=top_k, max_contexts=top_k, include_neighbors=False):
                 evidence.append({
